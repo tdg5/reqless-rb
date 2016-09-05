@@ -3,6 +3,7 @@
 .DS_STORE
 .bundle
 pkg/*
+Gemfile.lock
 
 spec/redis.config.yml
 bundle
