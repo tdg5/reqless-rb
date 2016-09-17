@@ -201,7 +201,7 @@ module Qless
       @options = options
       assert_minimum_redis_version('2.5.5') if @options.delete(:ensure_minimum_version)
       @config = Config.new(self)
-      @_qless = Qless::LuaScript.new('qless', @redis)
+      @_qless = Qless::LuaScript.new('qless', @redis, :on_reload_callback => @options[:on_lua_script_reload_callback])
 
       @jobs    = ClientJobs.new(self)
       @queues  = ClientQueues.new(self)

@@ -7,10 +7,12 @@ module Qless
 
   # Wraps a lua script. Knows how to reload it if necessary
   class LuaScript
+    DEFAULT_ON_RELOAD_CALLBACK = proc {}
     SCRIPT_ROOT = File.expand_path('../lua', __FILE__)
 
-    def initialize(name, redis)
+    def initialize(name, redis, options = {})
       @name  = name
+      @on_reload_callback = options[:on_reload_callback] || DEFAULT_ON_RELOAD_CALLBACK
       @redis = redis
       @sha   = Digest::SHA1.hexdigest(script_contents)
     end
@@ -19,6 +21,8 @@ module Qless
 
     def reload
       @sha = @redis.script(:load, script_contents)
+      @on_reload_callback.call(@redis, @sha)
+      @sha
     end
 
     def call(*argv)
