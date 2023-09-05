@@ -1,3 +1,3 @@
 [submodule "lib/qless/qless-core"]
 	path = lib/qless/qless-core
-	url = https://github.com/backupify/qless-core.git
+	url = https://github.com/tdg5/qless-core.git

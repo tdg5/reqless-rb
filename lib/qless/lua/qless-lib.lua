@@ -1,4 +1,4 @@
--- Current SHA: 20dc687832ad472f0a00899d26c285b893ff466c
+-- Current SHA: 1e30f5defc5c8875d18ab0e881c1362871ce245d
 -- This is a generated file
 -------------------------------------------------------------------------------
 -- Forward declarations to make everything happy
@@ -39,7 +39,7 @@ QlessRecurringJob.__index = QlessRecurringJob
 Qless.config = {}
 
 -- Extend a table. This comes up quite frequently
-function table.extend(self, other)
+local function table_extend(self, other)
   for i, v in ipairs(other) do
     table.insert(self, v)
   end
@@ -1296,7 +1296,7 @@ function QlessJob:history(now, what, item)
       -- We'll always keep the first item around
       local obj = redis.call('lpop', QlessJob.ns .. self.jid .. '-history')
       redis.call('ltrim', QlessJob.ns .. self.jid .. '-history', -count + 2, -1)
-      if obj ~= nil then
+      if obj ~= nil and obj ~= false then
         redis.call('lpush', QlessJob.ns .. self.jid .. '-history', obj)
       end
     end
@@ -1672,7 +1672,7 @@ function QlessQueue:peek(now, count)
 
   -- With these in place, we can expand this list of jids based on the work
   -- queue itself and the priorities therein
-  table.extend(jids, self.work.peek(count - #jids))
+  table_extend(jids, self.work.peek(count - #jids))
 
   return jids
 end
