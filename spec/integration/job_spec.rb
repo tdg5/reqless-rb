@@ -308,14 +308,6 @@ module Qless
       expect(client.jobs['jid'].backlog).to eq(1)
     end
 
-    it 'exposes when the next job will run' do
-      pending('This is implemented only in the python client')
-      queue.recur('Foo', {}, 60, jid: 'jid')
-      nxt = client.jobs['jid'].next
-      queue.pop
-      expect(client.jobs['jid'].next - nxt - 60).to be < 1
-    end
-
     it 'can cancel itself' do
       queue.recur('Foo', {}, 60, jid: 'jid')
       client.jobs['jid'].cancel

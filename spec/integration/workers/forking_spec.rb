@@ -125,11 +125,5 @@ module Qless
       words = redis.lrange(key, 0, -1)
       expect(words).to eq %w[ after_fork job job job ]
     end
-
-    context 'when a job times out', :uses_threads do
-      it 'fails the job with an error containing the job backtrace' do
-        pending('I do not think this is actually the desired behavior')
-      end
-    end
   end
 end

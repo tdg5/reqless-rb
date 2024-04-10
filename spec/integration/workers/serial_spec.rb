@@ -197,10 +197,6 @@ module Qless
           redis.rpush(key, 'foo')
         end
       end
-
-      it 'fails the job with an error containing the job backtrace' do
-        pending('I do not think this is actually the desired behavior')
-      end
     end
 
     # Specs related specifically to middleware

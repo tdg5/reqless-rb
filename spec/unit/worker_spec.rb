@@ -68,7 +68,7 @@ module Qless
         job.should respond_to(:fail).with(2).arguments
         job.should_receive(:fail) do |group, message|
           last_line = message.split("\n").last
-          expect(last_line).to match(/base\.rb:\d+:in `around_perform'/)
+          expect(last_line).to match(/base\.rb:\d+:in `perform'/)
         end
         worker.perform(job)
       end

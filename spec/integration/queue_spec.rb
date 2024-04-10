@@ -71,10 +71,6 @@ module Qless
       expect(queue.paused?).to be(false)
     end
 
-    it 'can optionally stop all running jobs when pausing' do
-      pending('this is specific to ruby')
-    end
-
     it 'exposes a throttle' do
       expect(queue.throttle).to be
     end
