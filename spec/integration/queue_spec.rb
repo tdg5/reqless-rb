@@ -79,11 +79,6 @@ module Qless
       expect(queue.throttle).to be
     end
 
-    it 'exposes max concurrency' do
-      queue.max_concurrency = 5
-      expect(queue.max_concurrency).to eq(5)
-    end
-
     it 'gets nil for popping an empty queue' do
       expect(queue.pop).to_not be
     end

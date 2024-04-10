@@ -73,16 +73,6 @@ module Qless
       @throttle ||= Qless::Throttle.new("ql:q:#{name}", client)
     end
 
-    def max_concurrency
-      warn "[DEPRECATED - 4/17/14] `max_concurrency` is deprecated. Use `throttle.maximum` instead."
-      throttle.maximum
-    end
-
-    def max_concurrency=(value)
-      warn "[DEPRECATED - 4/17/14] `max_concurrency=` is deprecated. Use `throttle.maximum=` instead."
-      throttle.maximum = value
-    end
-
     def paused?
       counts['paused']
     end
