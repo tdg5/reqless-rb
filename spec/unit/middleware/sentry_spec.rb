@@ -26,7 +26,8 @@ module Qless
           'popped' => time_2.to_i,
           'put'    => time_1.to_i,
           'q'      => 'test_error',
-          'worker' => 'Myrons-Macbook-Pro.local-44396' }
+          'worker' => 'Myrons-Macbook-Pro.local-44396',
+        }
       end
 
       let(:job) do
@@ -47,10 +48,10 @@ module Qless
 
       it 'logs jobs with errors to sentry' do
         sent_event = nil
-        ::Raven.stub(:send) { |e| sent_event = e }
+        allow(::Raven).to receive(:send) { |e| sent_event = e }
 
         # it's important the job still fails normally
-        job.should_receive(:fail)
+        expect(job).to receive(:fail)
 
         perform_job
 
@@ -71,8 +72,8 @@ module Qless
       end
 
       it 'does not silence the original error when sentry errors' do
-        ::Raven.stub(:send) { raise ::Raven::Error, 'sentry failure' }
-        job.should_receive(:fail) do |_, message|
+        allow(::Raven).to receive(:send) { raise ::Raven::Error, 'sentry failure' }
+        expect(job).to receive(:fail) do |_, message|
           expect(message).to include('job failure')
           expect(message).not_to include('sentry failure')
         end

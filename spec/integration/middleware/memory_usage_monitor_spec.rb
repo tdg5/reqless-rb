@@ -135,7 +135,7 @@ module Qless
 
         context "when rusage returns memory in KB (commonly on Linux)" do
           before do
-            Process.stub(:rusage) { double(maxrss: memory_kb_according_to_ps) }
+            expect(Process).to receive(:rusage).and_return(double(maxrss: memory_kb_according_to_ps)).exactly(2).times
             load "qless/middleware/memory_usage_monitor.rb"
           end
 
@@ -146,7 +146,7 @@ module Qless
 
         context "when rusage returns memory in bytes (commonly on OS X)" do
           before do
-            Process.stub(:rusage) { double(maxrss: memory_kb_according_to_ps * 1024) }
+            expect(Process).to receive(:rusage).and_return(double(maxrss: memory_kb_according_to_ps * 1024)).exactly(2).times
             load "qless/middleware/memory_usage_monitor.rb"
           end
 
@@ -159,8 +159,8 @@ module Qless
       context "when the rusage gem is not available" do
         it_behaves_like "memory usage monitor" do
           before do
-            MemoryUsageMonitor.stub(:warn)
-            MemoryUsageMonitor.stub(:require).and_raise(LoadError)
+            expect(MemoryUsageMonitor).to receive(:warn)
+            expect(MemoryUsageMonitor).to receive(:require).and_raise(LoadError)
             load "qless/middleware/memory_usage_monitor.rb"
           end
         end

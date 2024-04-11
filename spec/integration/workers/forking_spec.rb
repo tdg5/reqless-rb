@@ -26,7 +26,7 @@ module Qless
       # Wait for the job to complete, and then kill the child process
       run_worker_concurrently_with(worker) do
         words.each do |word|
-          client.redis.brpop(key, timeout: 1).should eq([key.to_s, word])
+          expect(client.redis.brpop(key, timeout: 1)).to eq([key.to_s, word])
         end
       end
     end
@@ -68,7 +68,7 @@ module Qless
       queue.put('JobClass', { redis: redis.id, key: key, word: :foo },
                 retries: 5)
       run_worker_concurrently_with(worker) do
-        client.redis.brpop(key, timeout: 1).should eq([key.to_s, 'foo'])
+        expect(client.redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
       end
     end
 
@@ -91,7 +91,7 @@ module Qless
       # Put a job in and run it
       queue.put('JobClass', { redis: redis.id, key: key, word: :foo })
       run_worker_concurrently_with(worker) do
-        client.redis.brpop(key, timeout: 1).should eq([key.to_s, 'foo'])
+        expect(client.redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
       end
     end
 

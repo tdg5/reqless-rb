@@ -15,8 +15,8 @@ module Qless
     let(:queue) { client.queues['foo'] }
 
     it 'can specify a jid in put and klass as string' do
-      queue.put('Qless::Job', {}, jid: 'a').should eq('a')
-      queue.put(Job, {}, jid: 'b').should eq('b')
+      expect(queue.put('Qless::Job', {}, jid: 'a')).to eq('a')
+      expect(queue.put(Job, {}, jid: 'b')).to eq('b')
     end
 
     it 'has all the attributes we would expect' do
@@ -140,7 +140,7 @@ module Qless
 
     it 'raises an error if it fails to heartbeat' do
       queue.put('Foo', {}, jid: 'jid')
-      expect { client.jobs['jid'].heartbeat }.to raise_error
+      expect { client.jobs['jid'].heartbeat }.to raise_error(/Job not currently running/)
     end
 
     it 'knows if it is tracked' do
@@ -165,7 +165,7 @@ module Qless
 
     it 'raises an error if retry fails' do
       queue.put('Foo', {}, jid: 'jid')
-      expect { client.jobs['jid'].retry }.to raise_error
+      expect { client.jobs['jid'].retry }.to raise_error(/Job is not currently running/)
     end
 
     it 'has a reasonable to_s' do
@@ -241,8 +241,8 @@ module Qless
     let(:queue) { client.queues['foo'] }
 
     it 'can take either a class or string' do
-      queue.recur('Qless::Job', {}, 5, jid: 'a').should eq('a')
-      queue.recur(Job, {}, 5, jid: 'b').should eq('b')
+      expect(queue.recur('Qless::Job', {}, 5, jid: 'a')).to eq('a')
+      expect(queue.recur(Job, {}, 5, jid: 'b')).to eq('b')
     end
 
     it 'has all the expected attributes' do

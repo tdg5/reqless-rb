@@ -20,20 +20,20 @@ module Qless
 
     describe '.build' do
       it 'creates a job instance' do
-        Job.build(client, JobClass).should be_a(Job)
+        expect(Job.build(client, JobClass)).to be_a(Job)
       end
 
       it 'honors attributes passed as a symbol' do
         job = Job.build(client, JobClass, data: { 'a' => 5 })
-        job.data.should eq('a' => 5)
+        expect(job.data).to eq('a' => 5)
       end
 
       it 'round-trips data through JSON to mimic real jobs' do
         time = Time.new(2012, 5, 3, 12, 30)
         job = Job.build(client, JobClass, data: { a: 5, timestamp: time })
-        job.data.keys.should =~ %w[ a timestamp ]
-        job.data['timestamp'].should be_a(String)
-        job.data['timestamp'].should include('2012-05-03')
+        expect(job.data.keys).to eq(%w[ a timestamp ])
+        expect(job.data['timestamp']).to be_a(String)
+        expect(job.data['timestamp']).to include('2012-05-03')
       end
     end
 
@@ -77,13 +77,13 @@ module Qless
     describe '#perform' do
       it 'calls #perform method on the job class with job as an argument' do
         job = Job.build(client, JobClass)
-        JobClass.should_receive(:perform).with(job).once
+        expect(JobClass).to receive(:perform).with(job).once
         job.perform
       end
 
       it 'properly finds nested classes' do
         job = Job.build(client, JobClass::Nested)
-        JobClass::Nested.should_receive(:perform).with(job).once
+        expect(JobClass::Nested).to receive(:perform).with(job).once
         job.perform
       end
 
@@ -93,7 +93,7 @@ module Qless
           stub_const('MyJobClass', klass)
 
           job = Job.build(client, klass)
-          klass.should_receive(:around_perform).with(job).once
+          expect(klass).to receive(:around_perform).with(job).once
           job.perform
         end
       end
@@ -128,7 +128,7 @@ module Qless
 
     shared_examples_for 'a method that calls lua' do |error, method, *args|
       it "raises a #{error} if a lua error is raised" do
-        client.stub(:call) do |command, *a|
+        expect(client).to receive(:call) do |command, *a|
           expect(command).to eq(method.to_s)
           raise LuaScriptError.new('failed')
         end
@@ -141,7 +141,7 @@ module Qless
       end
 
       it 'allows other errors to propagate' do
-        client.stub(:call) do |command, *a|
+        expect(client).to receive(:call) do |command, *a|
           expect(command).to eq(method.to_s)
           raise NoMethodError
         end
@@ -184,19 +184,19 @@ module Qless
         class MyCustomError < StandardError; end
 
         it 'does not update #state_changed? if redis connection error' do
-          client.stub(:call) { raise MyCustomError, 'boom' }
+          expect(client).to receive(:call).and_raise(MyCustomError.new('boom'))
 
           expect do
             job.send(meth, *args)
           end.to raise_error(MyCustomError)
 
-          job.state_changed?.should be false
+          expect(job.state_changed?).to be false
         end
 
         it 'triggers before and after callbacks' do
           events = []
 
-          client.stub(:call) { events << :lua_call }
+          allow(client).to receive(:call) { events << :lua_call }
 
           job.send(:"before_#{meth}") { |job| events << [:before_1, job] }
           job.send(:"before_#{meth}") { |job| events << [:before_2, job] }
@@ -242,15 +242,15 @@ module Qless
       let(:job) { Job.build(client, JobClass) }
 
       it 'includes the jid' do
-        job.inspect.should include(job.jid)
+        expect(job.inspect).to include(job.jid)
       end
 
       it 'includes the job class' do
-        job.inspect.should include(job.klass_name)
+        expect(job.inspect).to include(job.klass_name)
       end
 
       it 'includes the job queue' do
-        job.inspect.should include(job.queue_name)
+        expect(job.inspect).to include(job.queue_name)
       end
     end
 
@@ -275,12 +275,12 @@ module Qless
       end
 
       it 'returns the raw history from `history` as well' do
-        job.stub(:warn)
+        allow(job).to receive(:warn)
         expect(job.history).to eq([history_event])
       end
 
       it 'prints a deprecation warning from `history`' do
-        job.should_receive(:warn).with(/deprecated/i)
+        expect(job).to receive(:warn).with(/deprecated/i)
         job.history
       end
 

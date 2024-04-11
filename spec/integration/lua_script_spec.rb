@@ -21,7 +21,7 @@ module Qless
     it 'can issue commands without reloading the script' do
       # Create a LuaScript object, and ensure the script is loaded
       redis.script(:load, script.send(:script_contents))
-      redis.should_not_receive(:script)
+      expect(redis).to_not receive(:script)
       expect {
         script.call([], ['config.set', 12345, 'key', 3])
       }.to change { redis.keys.size }.by(1)
@@ -30,7 +30,7 @@ module Qless
     it 'loads the script as needed if the command fails' do
       # Ensure redis has no scripts loaded, and then invoke the command
       redis.script(:flush)
-      redis.should_receive(:script).and_call_original
+      expect(redis).to receive(:script).and_call_original
       expect {
         script.call([], ['config.set', 12345, 'key', 3])
       }.to change { redis.keys.size }.by(1)
@@ -38,9 +38,7 @@ module Qless
 
     it 're-raises non user_script errors' do
       FooError = Class.new(Redis::CommandError)
-      script.stub(:_call) do
-        raise FooError.new
-      end
+      expect(script).to receive(:_call).and_raise(FooError.new)
       expect {
         script.call([], ['foo'])
       }.to raise_error(FooError)
@@ -65,7 +63,7 @@ module Qless
     end
 
     it 'strips out comment lines before sending the script to redis' do
-      redis.should_receive(:script)
+      expect(redis).to receive(:script)
            .with(:load, string_excluding("some comments"))
            .at_least(:once)
            .and_call_original
@@ -75,7 +73,7 @@ module Qless
     end
 
     it 'does not load the script extra times' do
-      redis.should_receive(:script)
+      expect(redis).to receive(:script)
            .with(:load, an_instance_of(String))
            .once
            .and_call_original

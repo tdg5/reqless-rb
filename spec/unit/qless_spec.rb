@@ -6,7 +6,7 @@ require 'qless'
 describe Qless do
   describe '.generate_jid' do
     it 'generates a UUID suitable for use as a jid' do
-      Qless.generate_jid.should match(/\A[a-f0-9]{32}\z/)
+      expect(Qless.generate_jid).to match(/\A[a-f0-9]{32}\z/)
     end
   end
 
@@ -21,44 +21,44 @@ describe Qless do
   end
 
   before do
-    redis.stub(:script) # so no scripts get loaded
-    redis_class.stub(new: redis)
+    allow(redis_class).to receive(:new) { |*a| redis }
+    allow(redis).to receive(:script) # so no scripts get loaded
   end
 
   describe '#worker_name' do
     it 'includes the hostname in the worker name' do
-      Qless::Client.new.worker_name.should include(Socket.gethostname)
+      expect(Qless::Client.new.worker_name).to include(Socket.gethostname)
     end
 
     it 'includes the pid in the worker name' do
-      Qless::Client.new.worker_name.should include(Process.pid.to_s)
+      expect(Qless::Client.new.worker_name).to include(Process.pid.to_s)
     end
   end
 
   context 'when instantiated' do
     it 'does not check redis version if check is disabled' do
-      Qless::Client.any_instance.should_not_receive(:assert_minimum_redis_version)
+      expect_any_instance_of(Qless::Client).to_not receive(:assert_minimum_redis_version)
       Qless::Client.new({redis: redis, ensure_minimum_version: false})
     end
 
     it 'raises an error if the redis version is too low' do
-      redis.stub(info: { 'redis_version' => '2.5.3' })
+      expect(redis).to receive(:info).and_return({ 'redis_version' => '2.5.3' })
       expect { Qless::Client.new }.to raise_error(
         Qless::UnsupportedRedisVersionError)
     end
 
     it 'does not raise an error if the redis version is sufficient' do
-      redis.stub(info: { 'redis_version' => '2.6.0' })
+      expect(redis).to receive(:info).and_return({ 'redis_version' => '2.6.0' })
       Qless::Client.new # should not raise an error
     end
 
     it 'does not raise an error if the redis version is a prerelease' do
-      redis.stub(info: { 'redis_version' => '2.6.8-pre2' })
+      expect(redis).to receive(:info).and_return({ 'redis_version' => '2.6.8-pre2' })
       Qless::Client.new # should not raise an error
     end
 
     it 'considers 2.10 sufficient 2.6' do
-      redis.stub(info: { 'redis_version' => '2.10.0' })
+      expect(redis).to receive(:info).and_return({ 'redis_version' => '2.10.0' })
       Qless::Client.new # should not raise an error
     end
 
@@ -66,16 +66,15 @@ describe Qless do
       expect(redis_class).to_not receive(:new)
 
       client = Qless::Client.new(redis: redis)
-      client.redis.should be(redis)
+      expect(client.redis).to be(redis)
     end
 
     it 'creates a new redis connection based on initial redis connection options' do
       options = { host: 'localhost', port: '6379', password: 'awes0me!' }
       # Create the initial client which also instantiates an initial redis connection
       client = Qless::Client.new(options)
-
-      # Prepare stub to ensure second connection is instantiated with the same options as initial connection
-      redis_class.stub(:new).with(options)
+      # Prepare stub to ensure second connection is instantiated for original redis
+      expect(redis).to receive(:dup)
       client.new_redis_connection
     end
   end

@@ -63,7 +63,7 @@ module Qless
 
       job_results = redis.lrange(key, 0, -1)
       words.each do |word|
-        job_results.should include word
+        expect(job_results).to include word
       end
     end
 
@@ -77,7 +77,7 @@ module Qless
       queue.put('JobClass', { key: key })
 
       run_worker_concurrently_with(worker) do
-        redis.brpop(key, timeout: 1).should eq([key.to_s, "OK"])
+        expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, "OK"])
       end
 
       expect { |b| worker.send(:with_current_job, &b) }.to yield_with_args(nil)
@@ -116,7 +116,7 @@ module Qless
           expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
           client.jobs['jid'].timeout
           expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
-          client.jobs['jid'].state.should eq('complete')
+          expect(client.jobs['jid'].state).to eq('complete')
         end
 
         expect(callback_invoked).to be true
@@ -188,12 +188,12 @@ module Qless
 
         run_jobs(worker, 1) do
           # Busy-wait for the job to be running, and then time out another job
-          redis.brpop(key, timeout: 1).should eq([key.to_s, 'foo'])
+          expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
           job = queue.pop
           expect(job.jid).to eq('other')
           job.timeout
           # And the first should still be running
-          client.jobs['jid'].state.should eq('running')
+          expect(client.jobs['jid'].state).to eq('running')
           redis.rpush(key, 'foo')
         end
       end
@@ -221,7 +221,7 @@ module Qless
         queue.put('JobClass', { redis: redis.id, key: key, word: :foo },
                   jid: 'jid', retries: 10)
         run_jobs(worker, 1) do
-          redis.brpop(key, timeout: 1).should eq([key.to_s, 'foo'])
+          expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
           until client.jobs['jid'].state == 'waiting'; end
         end
         expect(client.jobs['jid'].retries_left).to be < 10

@@ -1,16 +1,13 @@
 # Encoding: utf-8
 
-# The things we're testing
 require 'qless'
-
-# Spec stuff
 require 'spec_helper'
 
 module Qless
   describe ClientEvents, :integration, :uses_threads do
-    let(:queue) { client.queues['foo'] }
-    let(:events) { Hash.new { |h, k| h[k] = [] } }
-    let(:pubsub) { new_client }
+    let!(:queue) { client.queues['foo'] }
+    let!(:events) { Hash.new { |h, k| h[k] = [] } }
+    let!(:pubsub) { new_client }
 
     # Tracked and untracked jobs
     let!(:untracked) do

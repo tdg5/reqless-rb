@@ -10,10 +10,10 @@ module Qless
   describe Config, :integration do
     it 'can set, get and erase configuration' do
       client.config['testing'] = 'foo'
-      client.config['testing'].should eq('foo')
-      client.config.all['testing'].should eq('foo')
+      expect(client.config['testing']).to eq('foo')
+      expect(client.config.all['testing']).to eq('foo')
       client.config.clear('testing')
-      client.config['testing'].should eq(nil)
+      expect(client.config['testing']).to eq(nil)
     end
 
     it 'can get all configurations' do

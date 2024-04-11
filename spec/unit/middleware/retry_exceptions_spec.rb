@@ -59,7 +59,7 @@ module Qless
         before { container.perform = -> { } }
 
         it 'does not retry the job' do
-          job.should_not_receive(:retry)
+          expect(job).to_not receive(:retry)
           perform
         end
       end
@@ -68,7 +68,7 @@ module Qless
         before { container.perform = -> { raise unmatched_exception } }
 
         it 'does not retry the job and allows the exception to propagate' do
-          job.should_not_receive(:retry)
+          expect(job).to_not receive(:retry)
           expect { perform }.to raise_error(unmatched_exception)
         end
 
@@ -92,12 +92,12 @@ module Qless
         before { container.perform = -> { raise matched_exception } }
 
         it 'retries the job, defaulting to no delay' do
-          job.should_receive(:retry).with(0, anything, anything)
+          expect(job).to receive(:retry).with(0, anything, anything)
           perform
         end
 
         it 'passes along the failure details when retrying' do
-          job.should_receive(:retry).with(
+          expect(job).to receive(:retry).with(
             anything,
             "JobClass:#{matched_exception.name}",
             /#{File.basename __FILE__}:#{raise_line}/)
@@ -109,12 +109,12 @@ module Qless
         end
 
         it 're-raises the exception if there are no retries left' do
-          job.stub(retries_left: 0)
+          expect(job).to receive(:retries_left).and_return(0)
           expect { perform }.to raise_error(matched_exception)
         end
 
         it 're-raises the exception if there are negative retries left' do
-          job.stub(retries_left: -1)
+          expect(job).to receive(:retries_left).and_return(-1)
           expect { perform }.to raise_error(matched_exception)
         end
 
@@ -130,10 +130,10 @@ module Qless
 
         def perform_and_track_delays
           delays = []
-          job.stub(:retry) { |delay| delays << delay }
+          allow(job).to receive(:retry) { |delay| delays << delay }
 
           5.downto(1) do |i|
-            job.stub(retries_left: i)
+            allow(job).to receive(:retries_left) { i }
             perform
           end
 

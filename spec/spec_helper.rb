@@ -9,7 +9,7 @@ rescue LoadError
   Bundler.setup
 end
 
-require 'rspec/fire'
+require 'capybara/rspec'
 
 module QlessSpecHelpers
   def with_env_vars(vars)
@@ -67,15 +67,10 @@ module RedisHelpers
 end
 
 RSpec.configure do |c|
-  c.treat_symbols_as_metadata_keys_with_true_values = true
   c.filter_run :f
   c.run_all_when_everything_filtered = true
-  c.include RSpec::Fire
   c.include QlessSpecHelpers
-
-  c.before(:each, :js) do
-    pending 'Skipping JS test because JS tests have been flaky on Travis.'
-  end if ENV['TRAVIS']
+  c.include Capybara::DSL
 end
 
 using_integration_context = false

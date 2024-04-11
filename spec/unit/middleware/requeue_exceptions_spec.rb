@@ -147,7 +147,7 @@ module Qless
           before { container.perform = -> { } }
 
           it 'does not requeue the job' do
-            job.should_not_receive(:requeue)
+            expect(job).to_not receive(:requeue)
             perform
           end
         end
@@ -156,7 +156,7 @@ module Qless
           before { container.perform = -> { raise unmatched_exception } }
 
           it 'allows the error to propagate' do
-            job.should_not_receive(:requeue)
+            expect(job).to_not receive(:requeue)
             expect { perform }.to raise_error(unmatched_exception)
           end
 
@@ -175,12 +175,12 @@ module Qless
           before { container.perform = -> { raise_exception } }
 
           it 'requeues the job' do
-            job.should_receive(:requeue).with('my-queue', anything)
+            expect(job).to receive(:requeue).with('my-queue', anything)
             perform
           end
 
           it 'uses a random delay from the delay_range' do
-            job.should_receive(:requeue) do |qname, hash|
+            expect(job).to receive(:requeue) do |qname, hash|
               expect(qname).to eq('my-queue')
               expect(hash[:delay]).to be_between(delay_range.min, delay_range.max)
             end
@@ -190,14 +190,14 @@ module Qless
           it 'tracks the number of requeues for this error' do
             expected_first_time = {
               'requeues_by_exception' => { exception_name => 1 } }
-            job.should_receive(:requeue).with('my-queue', hash_including(
+            expect(job).to receive(:requeue).with('my-queue', hash_including(
               data: expected_first_time
             ))
             perform
 
             job.data.merge!(expected_first_time)
 
-            job.should_receive(:requeue).with('my-queue', hash_including(
+            expect(job).to receive(:requeue).with('my-queue', hash_including(
               data: { 'requeues_by_exception' => { exception_name => 2 } }
             ))
             perform
@@ -206,7 +206,7 @@ module Qless
           it 'preserves other requeues_by_exception values' do
             job.data['requeues_by_exception'] = { 'SomeKlass' => 3 }
 
-            job.should_receive(:requeue).with('my-queue', hash_including(
+            expect(job).to receive(:requeue).with('my-queue', hash_including(
               data: {
                 'requeues_by_exception' => {
                   exception_name => 1, 'SomeKlass' => 3
@@ -218,7 +218,7 @@ module Qless
           it 'preserves other data' do
             job.data['foo'] = 3
 
-            job.should_receive(:requeue).with('my-queue', hash_including(
+            expect(job).to receive(:requeue).with('my-queue', hash_including(
               data: {
                 'requeues_by_exception' => { exception_name => 1 },
                 'foo' => 3 }
@@ -229,7 +229,7 @@ module Qless
           it 'allow the error to propogate after max_attempts' do
             job.data['requeues_by_exception'] = {
               exception_name => max_attempts }
-            job.should_not_receive(:requeue)
+            expect(job).to_not receive(:requeue)
 
             expect { perform }.to raise_error(exception)
           end

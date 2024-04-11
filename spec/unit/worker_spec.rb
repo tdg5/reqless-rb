@@ -47,26 +47,26 @@ module Qless
       after(:all) { clear_qless_memoization }
 
       it 'performs the job' do
-        JobClass.should_receive(:perform)
+        expect(JobClass).to receive(:perform)
         worker.perform(Job.build(client, JobClass))
       end
 
       it 'fails the job it raises an error, including root exceptions' do
-        JobClass.stub(:perform) { raise Exception.new('boom') }
+        expect(JobClass).to receive(:perform) { raise Exception.new('boom') }
         expected_line_number = __LINE__ - 1
-        job.should respond_to(:fail).with(2).arguments
-        job.should_receive(:fail) do |group, message|
-          group.should eq('Qless::JobClass:Exception')
-          message.should include('boom')
-          message.should include("#{__file__}:#{expected_line_number}")
+        expect(job).to respond_to(:fail).with(2).arguments
+        expect(job).to receive(:fail) do |group, message|
+          expect(group).to eq('Qless::JobClass:Exception')
+          expect(message).to include('boom')
+          expect(message).to include("#{__file__}:#{expected_line_number}")
         end
         worker.perform(job)
       end
 
       it 'removes the redundant backtrace lines from failure backtraces' do
-        JobClass.stub(:perform) { raise Exception.new('boom') }
-        job.should respond_to(:fail).with(2).arguments
-        job.should_receive(:fail) do |group, message|
+        expect(JobClass).to receive(:perform) { raise Exception.new('boom') }
+        expect(job).to respond_to(:fail).with(2).arguments
+        expect(job).to receive(:fail) do |group, message|
           last_line = message.split("\n").last
           expect(last_line).to match(/base\.rb:\d+:in `perform'/)
         end
@@ -74,9 +74,9 @@ module Qless
       end
 
       it 'replaces the working directory with `.` in failure backtraces' do
-        JobClass.stub(:perform) { raise Exception.new('boom') }
-        job.should respond_to(:fail).with(2).arguments
-        job.should_receive(:fail) do |group, message|
+        expect(JobClass).to receive(:perform) { raise Exception.new('boom') }
+        expect(job).to respond_to(:fail).with(2).arguments
+        expect(job).to receive(:fail) do |group, message|
           expect(message).not_to include(Dir.pwd)
           expect(message).to include('./lib')
         end
@@ -85,9 +85,9 @@ module Qless
 
       it 'truncates failure messages so they do not get too big' do
         failure = 'a' * 50_000
-        JobClass.stub(:perform) { raise Exception.new(failure) }
-        job.should respond_to(:fail).with(2).arguments
-        job.should_receive(:fail) do |group, message|
+        expect(JobClass).to receive(:perform) { raise Exception.new(failure) }
+        expect(job).to respond_to(:fail).with(2).arguments
+        expect(job).to receive(:fail) do |group, message|
           expect(message.bytesize).to be < 25_000
         end
         worker.perform(job)
@@ -96,13 +96,13 @@ module Qless
       it 'replaces the GEM_HOME with <GEM_HOME> in failure backtraces' do
         gem_home = '/this/is/gem/home'
         with_env_vars 'GEM_HOME' => gem_home do
-          JobClass.stub(:perform) do
+          expect(JobClass).to receive(:perform) do
             error = Exception.new('boom')
             error.set_backtrace(["#{gem_home}/foo.rb:1"])
             raise error
           end
-          job.should respond_to(:fail).with(2).arguments
-          job.should_receive(:fail) do |group, message|
+          expect(job).to respond_to(:fail).with(2).arguments
+          expect(job).to receive(:fail) do |group, message|
             expect(message).not_to include(gem_home)
             expect(message).to include('<GEM_HOME>/foo.rb:1')
           end
@@ -111,21 +111,21 @@ module Qless
       end
 
       it 'completes the job if it finishes with no errors' do
-        JobClass.stub(:perform)
-        job.should respond_to(:complete).with(0).arguments
-        job.should_receive(:complete).with(no_args)
+        expect(JobClass).to receive(:perform)
+        expect(job).to respond_to(:complete).with(0).arguments
+        expect(job).to receive(:complete).with(no_args)
         worker.perform(job)
       end
 
       it 'fails the job if the job class is invalid or not found' do
         hide_const('Qless::MyJobClass')
-        job.should_receive(:fail)
+        expect(job).to receive(:fail)
         expect { worker.perform(job) }.not_to raise_error
       end
 
       it 'does not complete the job its state has changed' do
-        JobClass.stub(:perform) { |j| j.requeue('other') }
-        job.should_not_receive(:complete)
+        expect(JobClass).to receive(:perform) { |j| j.requeue('other') }
+        expect(job).to_not receive(:complete)
         worker.perform(job)
       end
 
@@ -137,7 +137,7 @@ module Qless
           end
         end
         worker.extend(mixin)
-        job.should_receive(:foo)
+        expect(job).to receive(:foo)
         worker.perform(job)
       end
 
@@ -148,10 +148,10 @@ module Qless
           end
         }
         expected_line_number = __LINE__ - 3
-        job.should respond_to(:fail).with(2).arguments
-        job.should_receive(:fail) do |group, message|
-          message.should include('boom')
-          message.should include("#{__file__}:#{expected_line_number}")
+        expect(job).to respond_to(:fail).with(2).arguments
+        expect(job).to receive(:fail) do |group, message|
+          expect(message).to include('boom')
+          expect(message).to include("#{__file__}:#{expected_line_number}")
         end
         worker.perform(job)
       end
@@ -161,7 +161,6 @@ module Qless
         logger = Logger.new(logger_io)
         worker = worker_class.new(reserver, logger: logger, log_level: Logger::DEBUG)
 
-        JobClass.stub(:perform)
         worker.send(:log, :warn, 'my-message')
         expect(logger_io.string).to match(/my-message/)
       end
