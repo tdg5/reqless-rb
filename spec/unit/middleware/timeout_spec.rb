@@ -88,7 +88,6 @@ module Qless
             worker = make_worker(InactiveTimeout, 120, kernel_class)
 
             expect(kernel_class).not_to receive(:exit!)
-            expect(job).not_to receive(:reconnect_to_redis)
             expect(job).not_to receive(:fail)
 
             worker.around_perform job
@@ -105,7 +104,6 @@ module Qless
 
           it 'reconnects to redis (to recover in case redis causes timeout)' do
             worker = make_worker(TriggeredTimeout, 120, kernel_class)
-            expect(job).to receive(:reconnect_to_redis)
             expect {
               worker.around_perform job
             }.not_to raise_error

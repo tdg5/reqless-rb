@@ -38,15 +38,8 @@ module Qless
     end
 
   private
-
-    if USING_LEGACY_REDIS_VERSION
-      def _call(*argv)
-        @redis.evalsha(@sha, 0, *argv)
-      end
-    else
-      def _call(*argv)
-        @redis.evalsha(@sha, keys: [], argv: argv)
-      end
+    def _call(*argv)
+      @redis.evalsha(@sha, keys: [], argv: argv)
     end
 
     def handle_no_script_error
@@ -61,7 +54,7 @@ module Qless
       MESSAGE = 'NOSCRIPT No matching script. Please use EVAL.'
 
       def self.===(error)
-        error.is_a?(Redis::CommandError) && error.message == MESSAGE
+        error.is_a?(Redis::CommandError) && error.message.include?(MESSAGE)
       end
     end
 

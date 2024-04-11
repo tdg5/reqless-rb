@@ -27,8 +27,8 @@ module Qless
 
     it "returns the set of locked jids" do
       t = Throttle.new('name', client)
-      Redis.current.zadd('ql:th:name-locks', [[1, 1], [1, 2], [1, 3]])
-      t.locks.should eq(["1", "2", "3"])
+      client.redis.zadd('ql:th:name-locks', [[1, 1], [1, 2], [1, 3]])
+      expect(t.locks).to eq(["1", "2", "3"])
     end
 
     it "can set and retrieve the throttle's maximum lock count" do

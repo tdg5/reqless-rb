@@ -10,14 +10,6 @@ module Qless
   # Define our error base class before requiring the other files so they can
   # define subclasses.
   Error = Class.new(StandardError)
-
-  # to maintain backwards compatibility with v2.x of that gem we need this
-  # constant because:
-  # - (lua.rb) the #evalsha method signature changed between v2.x and v3.x of
-  #   the redis ruby gem
-  # - (worker.rb) in v3.x you have to reconnect to the redis server after
-  #   forking the process
-  USING_LEGACY_REDIS_VERSION = ::Redis::VERSION.to_f < 3.0
 end
 
 require 'qless/version'
@@ -195,11 +187,12 @@ module Qless
       default_options = {:ensure_minimum_version => true}
       options = default_options.merge(options)
 
+      should_ensure_minimum_redis_version = options.delete(:ensure_minimum_version)
       # This is the redis instance we're connected to. Use connect so REDIS_URL
       # will be honored
-      @redis   = options[:redis] || Redis.connect(options)
+      @redis   = options[:redis] || Redis.new(options)
       @options = options
-      assert_minimum_redis_version('2.5.5') if @options.delete(:ensure_minimum_version)
+      assert_minimum_redis_version('2.5.5') if should_ensure_minimum_redis_version
       @config = Config.new(self)
       @_qless = Qless::LuaScript.new('qless', @redis, :on_reload_callback => @options[:on_lua_script_reload_callback])
 
@@ -218,7 +211,7 @@ module Qless
       # Events needs its own redis instance of the same configuration, because
       # once it's subscribed, we can only use pub-sub-like commands. This way,
       # we still have access to the client in the normal case
-      @events ||= ClientEvents.new(Redis.connect(@options))
+      @events ||= ClientEvents.new(Redis.new(@options))
     end
 
     def call(command, *argv)
@@ -245,14 +238,8 @@ module Qless
       call('cancel', jids)
     end
 
-    if ::Redis.instance_method(:dup).owner == ::Redis
-      def new_redis_connection
-        redis.dup
-      end
-    else # redis version < 3.0.7
-      def new_redis_connection
-        ::Redis.new(@options)
-      end
+    def new_redis_connection
+      @redis.dup
     end
 
     def ==(other)

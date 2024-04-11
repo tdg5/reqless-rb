@@ -233,10 +233,6 @@ module Qless
           @current_job = job
         end
       end
-
-      def reconnect_each_client
-        uniq_clients.each { |client| client.redis.client.reconnect }
-      end
     end
   end
 end

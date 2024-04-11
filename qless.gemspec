@@ -35,7 +35,7 @@ language-specific extension will also remain up to date.
   s.test_files    = s.files.grep(/^(test|spec|features)\//)
   s.require_paths = ['lib']
 
-  s.add_dependency 'redis', '>= 2.2'
+  s.add_dependency 'redis', '~> 4.8.1'
 
   s.add_development_dependency 'sinatra'       , '~> 1.3.2'
   s.add_development_dependency 'vegas'         , '~> 0.1.11'

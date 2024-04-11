@@ -206,7 +206,6 @@ module Qless
       def fork_child_process
         fork do
           yield if block_given?
-          reconnect_each_client
           after_fork
           spawn.run
         end

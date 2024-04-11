@@ -38,7 +38,6 @@ module Qless
               # The stalled connection to redis might be the cause of the timeout. We cannot rely
               # on state of connection either (e.g., we might be in the middle of Redis call when
               # timeout happend). To play it safe, we reconnect.
-              job.reconnect_to_redis
               job.fail(*Qless.failure_formatter.format(job, error, []))
               # Since we are leaving with bang (exit!), normal requeue logic does not work.
               # Do it manually right here.

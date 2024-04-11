@@ -190,10 +190,6 @@ module Qless
       throttles.map { |name| Throttle.new(name, client) }
     end
 
-    def reconnect_to_redis
-      @client.redis.client.reconnect
-    end
-
     def history
       warn 'WARNING: Qless::Job#history is deprecated; use' +
            "Qless::Job#raw_queue_history instead; from:\n#{caller.first}"
