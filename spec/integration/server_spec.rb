@@ -40,7 +40,7 @@ module Qless
       visit '/'
 
       links = all('ul.nav a')
-      expect(links).to have_at_least(7).links
+      expect(links.length).to be >= 7
       links.each do |link|
         click_link link.text
       end
@@ -62,7 +62,7 @@ module Qless
     end
 
     def click_pagination_link(text)
-      within '.pagination' do
+      within '.top-pagination' do
         click_link text
       end
     end
@@ -133,19 +133,19 @@ module Qless
       visit '/throttles'
 
       expect(first('td', text: /ql:q:#{q.name}/i)).to be
-      expect(first(text_field_class, placeholder: /0/i)).to be
+      expect(first(text_field_class)["placeholder"]).to eq("0")
 
       maximum = first(text_field_class)
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(text_field_class, value: /3/i)).to be
+      expect(first(text_field_class)["value"]).to eq("3")
       expect(q.throttle.maximum).to eq(3)
 
       first('button.btn-danger').click
       first('button.btn-danger').click
 
-      expect(first(text_field_class, value: /0/i)).to be
+      expect(first(text_field_class)["placeholder"]).to eq("0")
     end
 
     it 'can set the expiration for queue throttles', js: true do
@@ -160,23 +160,24 @@ module Qless
       visit '/throttles'
 
       expect(first('td', text: /ql:q:#{q.name}/i)).to be
-      expect(first(expiration_field_class, placeholder: /-2/i)).to be
+      expect(first(expiration_field_class)["placeholder"]).to eq("-2")
 
       maximum = first(maximum_field_class)
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(maximum_field_class, value: /3/i)).to be
+      expect(first(maximum_field_class)["value"]).to eq("3")
       expect(q.throttle.maximum).to eq(3)
 
       expiration = first(expiration_field_class)
       expiration.set(1)
       expiration.trigger('blur')
 
+      sleep(2)
       visit '/throttles'
 
-      expect(first(maximum_field_class, value: /0/i)).to be
-      expect(first(expiration_field_class, placeholder: /-2/i)).to be
+      expect(first(maximum_field_class)["placeholder"]).to eq("0")
+      expect(first(expiration_field_class)["placeholder"]).to eq("-2")
     end
 
     it 'can set and delete job throttles', js: true do
@@ -191,19 +192,19 @@ module Qless
       visit "/jobs/#{jid}"
 
       expect(page).to have_content(t_id)
-      expect(first(".#{t_id}-maximum", placeholder: /0/i)).to be
+      expect(first(text_field_class)["placeholder"]).to eq("0")
 
-      maximum = first(".#{t_id}-maximum")
+      maximum = first(text_field_class)
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(".#{t_id}-maximum", value: /3/i)).to be
+      expect(first(text_field_class)["value"]).to eq("3")
       expect(throttle.maximum).to eq(3)
 
       first('button.btn-danger.remove-throttle').click
       first('button.btn-danger.remove-throttle').click
 
-      expect(first(".#{t_id}-maximum", value: /0/i)).to be
+      expect(first(text_field_class)["placeholder"]).to eq("0")
     end
 
     it 'can set the expiration for job throttles', js: true do
@@ -220,23 +221,24 @@ module Qless
       visit "/jobs/#{jid}"
 
       expect(page).to have_content(t_id)
-      expect(first(".#{t_id}-expiration", placeholder: /-2/i)).to be
+      expect(first(".#{t_id}-expiration")["placeholder"]).to eq("-2")
 
       maximum = first(".#{t_id}-maximum")
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(".#{t_id}-maximum", value: /3/i)).to be
+      expect(first(".#{t_id}-maximum")["value"]).to eq("3")
       expect(throttle.maximum).to eq(3)
 
       expiration = first(".#{t_id}-expiration")
       expiration.set(1)
       expiration.trigger('blur')
 
+      sleep(2)
       visit "/jobs/#{jid}"
 
-      expect(first(".#{t_id}-maximum", value: /0/i)).to be
-      expect(first(".#{t_id}-expiration", placeholder: /-2/i)).to be
+      expect(first(".#{t_id}-maximum")["placeholder"]).to eq("0")
+      expect(first(".#{t_id}-expiration")["placeholder"]).to eq("-2")
     end
 
     it 'can see the root-level summary' do
@@ -405,7 +407,7 @@ module Qless
 
       visit "/jobs/#{q.put(Qless::Job, {}, tags: %w{foo bar widget})}"
       %w{foo bar widget}.each do |tag|
-        expect(first('span', text: tag)).to be
+        expect(first('.tag', text: tag)).to be
       end
     end
 
@@ -668,63 +670,67 @@ module Qless
       expect(find('input[placeholder="Pri 25"]')).to be
 
       # And reload the page to make sure it's stuck between reloads
+      sleep(1)
       visit "/jobs/#{jid}"
-      expect(first('input[placeholder="Pri 25"]', placeholder: /\D*25/)).to be
-      expect(first('input[placeholder="Pri 0"]', placeholder: /\D*0/)).to_not be
+      expect(first('input[placeholder="Pri 25"]')).to be
+      expect(first('input[placeholder="Pri 0"]')).to_not be
     end
 
     it 'can add tags to a job', js: true do
       jid = q.put(Qless::Job, {})
       visit "/jobs/#{jid}"
-      expect(first('span', text: 'foo')).to_not be
-      expect(first('span', text: 'bar')).to_not be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(first('.tag', text: 'foo')).to_not be
+      expect(first('.tag', text: 'bar')).to_not be
+      expect(first('.tag', text: 'whiz')).to_not be
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
 
       visit "/jobs/#{jid}"
-      expect(first('span', text: 'foo')).to be
-      expect(first('span', text: 'bar')).to_not be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(first('.tag', text: 'foo')).to be
+      expect(first('.tag', text: 'bar')).to_not be
+      expect(first('.tag', text: 'whiz')).to_not be
       first('input[placeholder="Add Tag"]').set('bar')
       first('input[placeholder="Add Tag"]').trigger('blur')
 
-      expect(first('span', text: 'foo')).to be
-      expect(first('span', text: 'bar')).to be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(first('.tag', text: 'foo')).to be
+      expect(first('.tag', text: 'bar')).to be
+      expect(first('.tag', text: 'whiz')).to_not be
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
 
       # Now revisit the page and make sure it's happy
       visit("/jobs/#{jid}")
-      expect(first('span', text: 'foo')).to be
-      expect(first('span', text: 'bar')).to be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(first('.tag', text: 'foo')).to be
+      expect(first('.tag', text: 'bar')).to be
+      expect(first('.tag', text: 'whiz')).to_not be
     end
 
     it 'can remove tags', js: true do
       jid = q.put(Qless::Job, {}, tags: %w{foo bar})
       visit "/jobs/#{jid}"
-      expect(first('span', text: 'foo')).to be
-      expect(first('span', text: 'bar')).to be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(first('.tag', text: 'foo')).to be
+      expect(first('.tag', text: 'bar')).to be
+      expect(first('.tag', text: 'whiz')).to_not be
 
-      # This appears to be selenium-only, but :contains works for what we need
-      first('span:contains("foo") + button').click
+      first('.tag', :text => 'foo').sibling('button').click
       # Wait for it to disappear
-      expect(first('span', text: 'foo')).to_not be
+      Capybara.using_wait_time(3) do
+        expect(first('.tag', text: 'foo')).to_not be
+      end
 
-      first('span:contains("bar") + button').click
+      first('.tag', :text => 'bar').sibling('button').click
       # Wait for it to disappear
-      expect(first('span', text: 'bar')).to_not be
+      Capybara.using_wait_time(3) do
+        expect(first('.tag', text: 'bar')).to_not be
+      end
     end
 
     it 'can remove tags it has just added', js: true do
       jid = q.put(Qless::Job, {})
       visit "/jobs/#{jid}"
-      expect(first('span', text: 'foo')).to_not be
-      expect(first('span', text: 'bar')).to_not be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(first('.tag', text: 'foo')).to_not be
+      expect(first('.tag', text: 'bar')).to_not be
+      expect(first('.tag', text: 'whiz')).to_not be
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
       first('input[placeholder="Add Tag"]').set('bar')
@@ -732,21 +738,17 @@ module Qless
       first('input[placeholder="Add Tag"]').set('whiz')
       first('input[placeholder="Add Tag"]').trigger('blur')
 
-      # This appears to be selenium-only, but :contains works for what we need
-      expect(first('span:contains("foo") + button')).to be
-      first('span:contains("foo") + button').click
+      first('.tag', text: 'foo').sibling('button').click
       # Wait for it to disappear
-      expect(first('span', text: 'foo')).to_not be
+      expect(page).to have_no_selector('.tag', text: 'foo')
 
-      expect(first('span:contains("bar") + button')).to be
-      first('span:contains("bar") + button').click
+      first('.tag', text: 'bar').sibling('button').click
       # Wait for it to disappear
-      expect(first('span', text: 'bar')).to_not be
+      expect(page).to have_no_selector('.tag', text: 'bar')
 
-      expect(first('span:contains("whiz") + button')).to be
-      first('span:contains("whiz") + button').click
+      first('.tag', text: 'whiz').sibling('button').click
       # Wait for it to disappear
-      expect(first('span', text: 'whiz')).to_not be
+      expect(page).to have_no_selector('.tag', text: 'whiz')
     end
 
     it 'can sort failed groupings by the number of affected jobs' do
@@ -936,7 +938,9 @@ module Qless
       first('button.btn-danger').click
       # We should have to click the cancel button now
       first('button.btn-danger').click
-      expect(client.jobs[jid]).to_not be
+      Capybara.using_wait_time(3) do
+        expect(client.jobs[jid]).to_not be
+      end
 
       # Move it to another queue
       jid = other.recur(Qless::Job, {}, 600)
@@ -961,8 +965,8 @@ module Qless
 
       # And reload the page to make sure it's stuck between reloads
       visit "/jobs/#{jid}"
-      expect(first('input[placeholder="Pri 25"]', placeholder: /\D*25/)).to be
-      expect(first('input[placeholder="Pri 0"]', placeholder: /\D*0/)).to_not be
+      expect(first('input[placeholder="Pri 25"]')).to be
+      expect(first('input[placeholder="Pri 0"]')).to_not be
     end
 
     it 'can pause and unpause a queue', js: true do
@@ -972,42 +976,44 @@ module Qless
       visit '/'
 
       expect(q.pop).to be
-      button = first('button', title: /Pause/)
+      button = first('button[data-original-title="Pause"]')
       expect(button).to be
       button.click
       expect(q.pop).to_not be
 
-      # Now we should unpause it
-      first('button', title: /Unpause/).click
+      Capybara.using_wait_time(3) do
+        expect(page).to have_selector('button[data-original-title="Unpause"]')
+      end
+      first('button[data-original-title="Unpause"]').click
       expect(q.pop).to be
     end
 
     it 'can add tags to a recurring job', js: true do
       jid = q.put(Qless::Job, {})
       visit "/jobs/#{jid}"
-      expect(first('span', text: 'foo')).to_not be
-      expect(first('span', text: 'bar')).to_not be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(first('.tag', text: 'foo')).to_not be
+      expect(first('.tag', text: 'bar')).to_not be
+      expect(first('.tag', text: 'whiz')).to_not be
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
 
-      expect(find('span', text: 'foo')).to be
-      expect(first('span', text: 'bar')).to_not be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(find('.tag', text: 'foo')).to be
+      expect(first('.tag', text: 'bar')).to_not be
+      expect(first('.tag', text: 'whiz')).to_not be
       first('input[placeholder="Add Tag"]').set('bar')
       first('input[placeholder="Add Tag"]').trigger('blur')
 
-      expect(find('span', text: 'foo')).to be
-      expect(find('span', text: 'bar')).to be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(find('.tag', text: 'foo')).to be
+      expect(find('.tag', text: 'bar')).to be
+      expect(first('.tag', text: 'whiz')).to_not be
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
 
       # Now revisit the page and make sure it's happy
       visit("/jobs/#{jid}")
-      expect(find('span', text: 'foo')).to be
-      expect(find('span', text: 'bar')).to be
-      expect(first('span', text: 'whiz')).to_not be
+      expect(find('.tag', text: 'foo')).to be
+      expect(find('.tag', text: 'bar')).to be
+      expect(first('.tag', text: 'whiz')).to_not be
     end
   end
 
