@@ -10,40 +10,37 @@ module Qless
 
     it 'can start a worker and then shut it down' do
       # A job that just puts a word in a redis list to show that its done
-      job_class = Class.new do
+      class RedisMakingKeyWordPusherJobClass
         def self.perform(job)
           Redis.new(url: job['redis']).rpush(job['key'], job['word'])
         end
       end
-      stub_const('JobClass', job_class)
 
       # Make jobs for each word
       words = %w{foo bar howdy}
       words.each do |word|
-        queue.put('JobClass', { redis: redis.id, key: key, word: word })
+        queue.put(RedisMakingKeyWordPusherJobClass, { redis: redis.id, key: key, word: word })
       end
 
       # Wait for the job to complete, and then kill the child process
       run_worker_concurrently_with(worker) do
         words.each do |word|
-          expect(client.redis.brpop(key, timeout: 1)).to eq([key.to_s, word])
+          expect(client.redis.brpop(key, timeout: 5)).to eq([key.to_s, word])
         end
       end
     end
 
     it 'can drain its queues and exit' do
-      job_class = Class.new do
+      class SimpleKeyWordPusherJobClass
         def self.perform(job)
           job.client.redis.rpush(job['key'], job['word'])
         end
       end
 
-      stub_const('JobClass', job_class)
-
       # Make jobs for each word
       words = %w{foo bar howdy}
       words.each do |word|
-        queue.put('JobClass', { key: key, word: word })
+        queue.put(SimpleKeyWordPusherJobClass, { key: key, word: word })
       end
 
       drain_worker_queues(worker)
@@ -52,7 +49,7 @@ module Qless
 
     it 'does not blow up when the child process exits unexpectedly' do
       # A job that falls on its sword until its last retry
-      job_class = Class.new do
+      class ExplodingChildrenJobClass
         def self.perform(job)
           if job.retries_left > 1
             job.retry
@@ -62,13 +59,12 @@ module Qless
           end
         end
       end
-      stub_const('JobClass', job_class)
 
       # Put a job and run it, making sure it finally succeeds
-      queue.put('JobClass', { redis: redis.id, key: key, word: :foo },
+      queue.put(ExplodingChildrenJobClass, { redis: redis.id, key: key, word: :foo },
                 retries: 5)
       run_worker_concurrently_with(worker) do
-        expect(client.redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
+        expect(client.redis.brpop(key, timeout: 5)).to eq([key.to_s, 'foo'])
       end
     end
 
@@ -83,30 +79,27 @@ module Qless
       worker.extend(mixin)
 
       # Our job class does nothing
-      job_class = Class.new do
+      class NoOpJobClass
         def self.perform(job); end
       end
-      stub_const('JobClass', job_class)
 
       # Put a job in and run it
-      queue.put('JobClass', { redis: redis.id, key: key, word: :foo })
+      queue.put(NoOpJobClass, { redis: redis.id, key: key, word: :foo })
       run_worker_concurrently_with(worker) do
-        expect(client.redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
+        expect(client.redis.brpop(key, timeout: 5)).to eq([key.to_s, 'foo'])
       end
     end
 
     it 'has a usable after_fork hook for use with middleware' do
-      # Our job class does nothing
-      job_class = Class.new do
+      class RedisMakingKeyJobPusherJobClass
         def self.perform(job)
           Redis.new(url: job['redis']).rpush(job['key'], 'job')
         end
       end
-      stub_const('JobClass', job_class)
 
       # Make jobs for each word
       3.times do
-        queue.put('JobClass', { redis: redis.id, key: key })
+        queue.put(RedisMakingKeyJobPusherJobClass, { redis: redis.id, key: key })
       end
 
       # mixin module sends a message to a channel

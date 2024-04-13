@@ -1,5 +1,6 @@
 # Encoding: utf-8
 
+require 'logger'
 require 'thread'
 
 module Qless

@@ -92,11 +92,11 @@ module Qless
         end
 
         # Job that sleeps for a while on the first pass
-        job_class = Class.new do
+        class TimeOutCallbackTestJobClass
           def self.perform(job)
             redis = Redis.new(url: job['redis'])
-            if redis.get(job['jid']).nil?
-              redis.set(job['jid'], '1')
+            if redis.get(job.jid).nil?
+              redis.set(job.jid, '1')
               redis.rpush(job['key'], job['word'])
               sleep 5
               job.fail('foo', 'bar')
@@ -106,11 +106,10 @@ module Qless
             end
           end
         end
-        stub_const('JobClass', job_class)
 
         # Put this job into the queue and then busy-wait for the job to be
         # running, time it out, then make sure it eventually completes
-        queue.put('JobClass', { redis: redis.id, key: key, word: :foo },
+        queue.put(TimeOutCallbackTestJobClass, { redis: redis.id, key: key, word: :foo },
                   jid: 'jid')
         run_jobs(worker, 2) do
           expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
@@ -171,19 +170,18 @@ module Qless
         client.config['grace-period'] = 0
 
         # A class that sends a message and sleeps for a bit
-        job_class = Class.new do
+        class KeyWordPublisherJobClass
           def self.perform(job)
             redis = Redis.new(url: job['redis'])
             redis.rpush(job['key'], job['word'])
             redis.brpop(job['key'])
           end
         end
-        stub_const('JobClass', job_class)
 
         # Put this job into the queue and then have the worker lose its lock
-        queue.put('JobClass', { redis: redis.id, key: key, word: :foo },
+        queue.put(KeyWordPublisherJobClass, { redis: redis.id, key: key, word: :foo },
                   priority: 10, jid: 'jid')
-        queue.put('JobClass', { redis: redis.id, key: key, word: :foo },
+        queue.put(KeyWordPublisherJobClass, { redis: redis.id, key: key, word: :foo },
                   priority: 5, jid: 'other')
 
         run_jobs(worker, 1) do
@@ -203,7 +201,7 @@ module Qless
     describe Qless::Middleware do
       it 'will retry and eventually fail a repeatedly failing job' do
         # A job that raises an error, but automatically retries that error type
-        job_class = Class.new do
+        class RetryExceptionsJobClas
           extend Qless::Job::SupportsMiddleware
           extend Qless::Middleware::RetryExceptions
 
@@ -215,10 +213,9 @@ module Qless
             raise Kaboom
           end
         end
-        stub_const('JobClass', job_class)
 
         # Put a job and run it, making sure it gets retried
-        queue.put('JobClass', { redis: redis.id, key: key, word: :foo },
+        queue.put(RetryExceptionsJobClas, { redis: redis.id, key: key, word: :foo },
                   jid: 'jid', retries: 10)
         run_jobs(worker, 1) do
           expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])

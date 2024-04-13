@@ -25,35 +25,39 @@ module Qless
 
     it 'can listen for messages' do
       # Push messages onto the 'foo' key as they happen
+      messages = ::Queue.new
       listen do |_, message|
-        new_redis.rpush(channel, message)
+        messages << message
       end
 
       # Wait until the message is sent
       publish('{}')
-      expect(redis.brpop(channel)).to eq([channel, '{}'])
+      expect(messages.pop).to eq({})
     end
 
     it 'does not stop listening for callback exceptions' do
       # If the callback throws an exception, it should keep listening for more
       # messages, and not fall over instead
+      messages = ::Queue.new
       listen do |_, message|
         raise 'Explodify' if message['explode']
-        new_redis.rpush(channel, message)
+        messages << message
       end
 
       # Wait until the message is sent
       publish('{"explode": true}')
       publish('{}')
-      expect(redis.brpop(channel)).to eq([channel, '{}'])
+      expect(messages.pop).to eq({})
     end
 
     it 'can be stopped' do
       # We can start a listener and then stop a listener
+      messages = ::Queue.new
       subscriber = listen do |_, message|
-        new_redis.rpush(channel, message)
+        messages << message
       end
       expect(publish('{}')).to eq(1)
+      expect(messages.pop).to eq({})
 
       # Stop the subscriber and then ensure it's stopped listening
       subscriber.stop

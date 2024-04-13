@@ -12,6 +12,15 @@ class SomeJobClassWithDifferentToS
 end
 
 module Qless
+  class DefaultOptionsJobClass
+    def self.default_job_options(data)
+      { jid: "jid-#{data[:arg]}", priority: 100 }
+    end
+  end
+
+  class OtherClass
+  end
+
   describe Queue, :integration do
     ['name', :name].each do |name|
       it "can query length when initialized with nem = #{name.inspect}" do
@@ -41,31 +50,21 @@ module Qless
     shared_examples_for 'job options' do
       let(:q) { Queue.new('q', client) }
 
-      let(:klass1) do
-        Class.new do
-          def self.default_job_options(data)
-            { jid: "jid-#{data[:arg]}", priority: 100 }
-          end
-        end
-      end
-
-      let(:klass2) { Class.new }
-
-      it "uses options provided by the klass's .defualt_job_options method" do
-        jid = enqueue(q, klass1, { arg: 'foo' })
+      it "uses options provided by the class's .defualt_job_options method" do
+        jid = enqueue(q, DefaultOptionsJobClass, { arg: 'foo' })
         job = client.jobs[jid]
         expect(job.jid).to eq('jid-foo')
         expect(job.priority).to eq(100)
       end
 
       it 'overrides the default options with the passed options' do
-        jid = enqueue(q, klass1, { arg: 'foo' }, priority: 15)
+        jid = enqueue(q, DefaultOptionsJobClass, { arg: 'foo' }, priority: 15)
         job = client.jobs[jid]
         expect(job.priority).to eq(15)
       end
 
-      it 'works fine when the klass does not define .default_job_options' do
-        jid = enqueue(q, klass2, { arg: 'foo' }, priority: 15)
+      it 'works fine when the class does not define .default_job_options' do
+        jid = enqueue(q, OtherClass, { arg: 'foo' }, priority: 15)
         job = client.jobs[jid]
         expect(job.priority).to eq(15)
       end

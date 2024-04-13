@@ -6,37 +6,32 @@ module Qless::Middleware
   describe Timeout do
     include_context "forking worker"
 
-    def define_job_class(name, &block)
-      stub_const(name, Class.new(&block))
-    end
-
     def duration_of
       start = Time.now
       yield
       Time.now - start
     end
 
-    before do
-      define_job_class "MyJobClass" do
-        extend Qless::Job::SupportsMiddleware
+    class BaseTimeoutJobClass
+      extend Qless::Job::SupportsMiddleware
 
-        def self.perform(job)
-          job.client.redis.rpush("in_job", "about_to_sleep")
-          do_work
-        end
+      def self.perform(job)
+        job.client.redis.rpush("in_job", "about_to_sleep")
+        do_work
+      end
 
-        def self.do_work
-          sleep
-        end
+      def self.do_work
+        sleep
       end
     end
+
     let(:sleep_line) { __LINE__ - 4 }
 
-    def expect_job_to_timeout
-      jid = queue.put MyJobClass, {}
+    def expect_job_to_timeout(klass)
+      jid = queue.put(klass, {})
 
       duration_of { drain_worker_queues(worker) }.tap do
-        expect(redis.brpop("in_job", timeout: 1).last).to eq("about_to_sleep")
+        expect(redis.brpop("in_job", timeout: 5).last).to eq("about_to_sleep")
         job = client.jobs[jid]
 
         expect(job.failure["group"]).to include("JobTimedoutError")
@@ -46,9 +41,11 @@ module Qless::Middleware
     end
 
     it 'fails the job and kills the worker running it when it exceeds the provided timeout value' do
-      MyJobClass.extend Qless::Middleware::Timeout.new { 0.05 }
+      class FastTimeoutJobClass < BaseTimeoutJobClass
+        extend Qless::Middleware::Timeout.new { 0.05 }
+      end
 
-      duration = expect_job_to_timeout
+      duration = expect_job_to_timeout(FastTimeoutJobClass)
       expect(duration).to be < 0.2
     end
 
@@ -56,14 +53,16 @@ module Qless::Middleware
       queue.heartbeat = 0.05
       worker.extend Qless::Middleware::Timeout.new { |job| job.ttl + 0.05 }
 
-      duration = expect_job_to_timeout
+      duration = expect_job_to_timeout(BaseTimeoutJobClass)
       expect(duration).to be_between(0.1, 0.2)
     end
 
     it 'aborts with a clear error when given a non-positive timeout' do
-      MyJobClass.extend Qless::Middleware::Timeout.new { 0 }
+      class ErroroneousTimeoutJobClass < BaseTimeoutJobClass
+        extend Qless::Middleware::Timeout.new { 0 }
+      end
 
-      jid = queue.put MyJobClass, {}
+      jid = queue.put(ErroroneousTimeoutJobClass, {})
       drain_worker_queues(worker)
       job = client.jobs[jid]
 

@@ -133,9 +133,14 @@ module Qless
 
     def initialize(client, atts)
       super(client, atts.fetch('jid'))
-      %w{jid data priority tags state tracked
-         failure dependencies dependents throttles spawned_from_jid}.each do |att|
+      %w{
+        data failure dependencies dependents jid priority state tags throttles
+        tracked
+      }.each do |att|
         instance_variable_set(:"@#{att}", atts.fetch(att))
+        # Redis doesn't handle nil values so well, sometimes instead returning false,
+        # so massage spawned_by_jid to consistent be nil or a jid
+        @spawned_from_jid = atts.fetch('spawned_from_jid', nil) || nil
       end
 
       # Parse the data string
@@ -215,6 +220,7 @@ module Qless
     end
 
     def spawned_from
+      return nil if @spawned_from_jid.nil?
       @spawned_from ||= @client.jobs[@spawned_from_jid]
     end
 
