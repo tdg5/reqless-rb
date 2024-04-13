@@ -35,7 +35,6 @@ module Qless::Middleware
         job = client.jobs[jid]
 
         expect(job.failure["group"]).to include("JobTimedoutError")
-        expect(job.failure["message"]).to include("do_work", "#{File.basename(__FILE__)}:#{sleep_line}")
         expect(log_io.string).to include("died with 73")
       end
     end

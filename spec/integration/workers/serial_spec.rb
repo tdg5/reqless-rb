@@ -201,7 +201,7 @@ module Qless
     describe Qless::Middleware do
       it 'will retry and eventually fail a repeatedly failing job' do
         # A job that raises an error, but automatically retries that error type
-        class RetryExceptionsJobClas
+        class RetryExceptionsJobClass
           extend Qless::Job::SupportsMiddleware
           extend Qless::Middleware::RetryExceptions
 
@@ -215,11 +215,16 @@ module Qless
         end
 
         # Put a job and run it, making sure it gets retried
-        queue.put(RetryExceptionsJobClas, { redis: redis.id, key: key, word: :foo },
+        queue.put(RetryExceptionsJobClass, { redis: redis.id, key: key, word: :foo },
                   jid: 'jid', retries: 10)
         run_jobs(worker, 1) do
           expect(redis.brpop(key, timeout: 1)).to eq([key.to_s, 'foo'])
-          until client.jobs['jid'].state == 'waiting'; end
+          max_attempts = 20
+          attempts = 0
+          until attempts < max_attempts && client.jobs['jid'].state == 'waiting' do
+            attempts += 1
+            sleep 0.1
+          end
         end
         expect(client.jobs['jid'].retries_left).to be < 10
       end
