@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7.2.4
+    ports:
+      - "6379:6379"
+    restart: "no"
+    volumes:
+      - ./docker_data/redis:/var/lib/redis
+
+  reqless_ui:
+    depends_on:
+      - redis
+    environment:
+      REQLESS_UI_REDIS_URL: redis://redis:6379/0
+      REQLESS_UI_HOST: 0.0.0.0
+    image: tdg5/reqless-ui:0.0.8
+    ports:
+      - "9292:9292"
+    restart: "no"
