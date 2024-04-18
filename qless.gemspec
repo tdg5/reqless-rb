@@ -54,5 +54,4 @@ language-specific extension will also remain up to date.
   s.add_development_dependency 'simplecov' , '~> 0.22.0'
   s.add_development_dependency 'sinatra' , '~> 4.0.0'
   s.add_development_dependency 'timecop' , '~> 0.9.8'
-  s.add_development_dependency 'vegas' , '~> 0.1.11'
 end
