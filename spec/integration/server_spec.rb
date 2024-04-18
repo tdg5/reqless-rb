@@ -12,12 +12,15 @@ require 'rack/test'
 Capybara.javascript_driver = :poltergeist
 Capybara.default_max_wait_time = 2
 
-def try_repeatedly
+def try_repeatedly(max_attempts = 10)
     attempts = 0
-    max_attempts = 10
     while attempts < max_attempts && !yield
       attempts += 1
       sleep 0.1
+    end
+    if attempts == max_attempts
+      puts '[WARNING] try_repeatedly exhausted attempts:'
+      puts(caller)
     end
 end
 
@@ -142,61 +145,67 @@ module Qless
       test_pagination
     end
 
-    it 'can set and delete queues throttles', js: true do
+    it 'can set and delete queue throttles', js: true do
       q.put(Qless::Job, {})
-
-      text_field_class = ".ql-q-#{q.name}-maximum"
 
       expect(q.throttle.maximum).to eq(0)
 
       visit '/throttles'
 
+      text_field_class = ".ql-q-#{q.name}-maximum"
       expect(page).to have_selector('td', text: /ql:q:#{q.name}/i)
-      expect(first(text_field_class)["placeholder"]).to eq("0")
+      expect(first(text_field_class)['placeholder']).to eq('0')
 
       maximum = first(text_field_class)
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(text_field_class)["value"]).to eq("3")
+      try_repeatedly { q.throttle.maximum == 3 }
+
+      expect(first(text_field_class)['value']).to eq('3')
       expect(q.throttle.maximum).to eq(3)
 
       first('button.btn-danger').click
       first('button.btn-danger').click
 
-      expect(first(text_field_class)["placeholder"]).to eq("0")
+      try_repeatedly { q.throttle.maximum == 0 }
+
+      expect(first(text_field_class)['placeholder']).to eq('0')
     end
 
     it 'can set the expiration for queue throttles', js: true do
       q.put(Qless::Job, {})
-
-      maximum_field_class = ".ql-q-#{q.name}-maximum"
-      expiration_field_class = ".ql-q-#{q.name}-expiration"
-
       expect(q.throttle.maximum).to eq(0)
       expect(q.throttle.ttl).to eq(-2)
 
       visit '/throttles'
 
+      maximum_field_class = ".ql-q-#{q.name}-maximum"
+      expiration_field_class = ".ql-q-#{q.name}-expiration"
+
       expect(page).to have_selector('td', text: /ql:q:#{q.name}/i)
-      expect(first(expiration_field_class)["placeholder"]).to eq("-2")
+      expect(first(expiration_field_class)['placeholder']).to eq('-2')
 
       maximum = first(maximum_field_class)
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(maximum_field_class)["value"]).to eq("3")
+      expect(first(maximum_field_class)['value']).to eq('3')
+      try_repeatedly { q.throttle.maximum == 3 }
       expect(q.throttle.maximum).to eq(3)
 
       expiration = first(expiration_field_class)
       expiration.set(1)
       expiration.trigger('blur')
 
-      sleep(2)
+      try_repeatedly(15) { q.throttle.ttl == -2 }
+
+      expect(q.throttle.ttl).to eq(-2)
+
       visit '/throttles'
 
-      expect(first(maximum_field_class)["placeholder"]).to eq("0")
-      expect(first(expiration_field_class)["placeholder"]).to eq("-2")
+      expect(first(maximum_field_class)['placeholder']).to eq('0')
+      expect(first(expiration_field_class)['placeholder']).to eq('-2')
     end
 
     it 'can set and delete job throttles', js: true do
@@ -211,19 +220,23 @@ module Qless
       visit "/jobs/#{jid}"
 
       expect(page).to have_content(t_id)
-      expect(first(text_field_class)["placeholder"]).to eq("0")
+      expect(first(text_field_class)['placeholder']).to eq('0')
 
       maximum = first(text_field_class)
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(text_field_class)["value"]).to eq("3")
+      try_repeatedly { throttle.maximum == 3 }
+
+      expect(first(text_field_class)['value']).to eq('3')
       expect(throttle.maximum).to eq(3)
 
       first('button.btn-danger.remove-throttle').click
       first('button.btn-danger.remove-throttle').click
 
-      expect(first(text_field_class)["placeholder"]).to eq("0")
+      try_repeatedly { throttle.maximum == 0 }
+
+      expect(first(text_field_class)['placeholder']).to eq('0')
     end
 
     it 'can set the expiration for job throttles', js: true do
@@ -240,24 +253,27 @@ module Qless
       visit "/jobs/#{jid}"
 
       expect(page).to have_content(t_id)
-      expect(first(".#{t_id}-expiration")["placeholder"]).to eq("-2")
+      expect(first(expiration_field_class)['placeholder']).to eq('-2')
 
-      maximum = first(".#{t_id}-maximum")
+      maximum = first(maximum_field_class)
       maximum.set(3)
       maximum.trigger('blur')
 
-      expect(first(".#{t_id}-maximum")["value"]).to eq("3")
+      try_repeatedly { throttle.maximum == 3 }
+
+      expect(first(maximum_field_class)['value']).to eq('3')
       expect(throttle.maximum).to eq(3)
 
-      expiration = first(".#{t_id}-expiration")
+      expiration = first(expiration_field_class)
       expiration.set(1)
       expiration.trigger('blur')
 
-      sleep(2)
+      try_repeatedly(15) { throttle.ttl == -2 }
+
       visit "/jobs/#{jid}"
 
-      expect(first(".#{t_id}-maximum")["placeholder"]).to eq("0")
-      expect(first(".#{t_id}-expiration")["placeholder"]).to eq("-2")
+      expect(first(maximum_field_class)['placeholder']).to eq('0')
+      expect(first(expiration_field_class)['placeholder']).to eq('-2')
     end
 
     it 'can see the root-level summary' do
@@ -279,6 +295,7 @@ module Qless
       # Let's pop the job, and make sure that we can see /that/
       job = q.pop
       expect(job).to be
+
       visit '/'
       expect(page).to have_selector('.queue-row', text: /1\D+0\D+0\D+0\D+0\D+0\D+0/)
       expect(page).to have_selector('.worker-row', text: q.worker_name)
@@ -286,16 +303,18 @@ module Qless
 
       # Let's complete the job, and make sure it disappears
       job.complete
+
       visit '/'
       expect(page).to have_selector('.queue-row', text: /0\D+0\D+0\D+0\D+0\D+0\D+0/)
       expect(page).to have_selector('.worker-row', text: /0\D+0/i)
 
       # Let's throttle a job, and make sure we see it
       client.throttles['one'].maximum = 1
-      q.put(Qless::Job, {}, :throttles => ["one"])
-      q.put(Qless::Job, {}, :throttles => ["one"])
+      q.put(Qless::Job, {}, :throttles => ['one'])
+      q.put(Qless::Job, {}, :throttles => ['one'])
       job1 = q.pop
       job2 = q.pop
+
       visit '/'
       expect(page).to have_selector('.queue-row', text: /1\D+0\D+1\D+0\D+0\D+0\D+0/)
       job1.complete
@@ -305,16 +324,19 @@ module Qless
       q.put(Qless::Job, {})
       job = q.pop
       job.fail('foo-failure', 'bar')
+
       visit '/'
       expect(page).to have_selector('.failed-row', text: /foo-failure/)
       expect(page).to have_selector('.failed-row', text: /1/i)
 
       # And let's have one scheduled, and make sure it shows up accordingly
       jid = q.put(Qless::Job, {}, delay: 60)
+
       visit '/'
       expect(page).to have_selector('.queue-row', text: /0\D+0\D+0\D+1\D+0\D+0\D+0/)
       # And one that depends on that job
       q.put(Qless::Job, {}, depends: [jid])
+
       visit '/'
       expect(page).to have_selector('.queue-row', text: /0\D+0\D+0\D+1\D+0\D+1\D+0/)
     end
@@ -331,12 +353,14 @@ module Qless
       expect(page).to have_selector('a', text: /waiting\W+1/i)
       # Now let's pop off the job so that it's running
       job = q.pop
+
       visit '/track'
       expect(page).to have_selector('a', text: /all\W+1/i)
       expect(page).to have_selector('a', text: /waiting\W+0/i)
       expect(page).to have_selector('a', text: /running\W+1/i)
       # Now let's complete the job and make sure it shows up again
       job.complete
+
       visit '/track'
       expect(page).to have_selector('a', text: /all\W+1/i)
       expect(page).to have_selector('a', text: /running\W+0/i)
@@ -345,10 +369,11 @@ module Qless
 
       # And now for a throttled job
       client.throttles['one'].maximum = 1
-      q.put(Qless::Job, {}, throttles: ["one"])
-      job = client.jobs[q.put(Qless::Job, {}, throttles: ["one"])]
+      q.put(Qless::Job, {}, throttles: ['one'])
+      job = client.jobs[q.put(Qless::Job, {}, throttles: ['one'])]
       job.track
       q.pop(2)
+
       visit '/track'
       expect(page).to have_selector('a', text: /all\W+1/i)
       expect(page).to have_selector('a', text: /throttled\W+1/i)
@@ -357,6 +382,7 @@ module Qless
       # And now for a scheduled job
       job = client.jobs[q.put(Qless::Job, {}, delay: 600)]
       job.track
+
       visit '/track'
       expect(page).to have_selector('a', text: /all\W+1/i)
       expect(page).to have_selector('a', text: /scheduled\W+1/i)
@@ -367,6 +393,7 @@ module Qless
       job = q.pop
       job.track
       job.fail('foo', 'bar')
+
       visit '/track'
       expect(page).to have_selector('a', text: /all\W+1/i)
       expect(page).to have_selector('a', text: /failed\W+1/i)
@@ -376,6 +403,7 @@ module Qless
       job = client.jobs[
         q.put(Qless::Job, {}, depends: [q.put(Qless::Job, {})])]
       job.track
+
       visit '/track'
       expect(page).to have_selector('a', text: /all\W+1/i)
       expect(page).to have_selector('a', text: /depends\W+1/i)
@@ -390,6 +418,7 @@ module Qless
       #    - A failed job gets the 'retry' button
       #    - An incomplete job gets the 'cancel' button
       job = client.jobs[q.put(Qless::Job, {})]
+
       visit "/jobs/#{job.jid}"
       expect(page).to have_selector('i.icon-remove')
       expect(page).to_not have_selector('i.icon-repeat')
@@ -398,6 +427,7 @@ module Qless
 
       # Let's fail the job and that it has the repeat button
       q.pop.fail('foo', 'bar')
+
       visit "/jobs/#{job.jid}"
       expect(page).to have_selector('i.icon-remove')
       expect(page).to have_selector('i.icon-repeat')
@@ -408,6 +438,7 @@ module Qless
       # the cancel button
       job.requeue('testing')
       q.pop.complete
+
       visit "/jobs/#{job.jid}"
       expect(page).to_not have_selector('i.icon-remove.cancel-job')
       expect(page).to_not have_selector('i.icon-repeat')
@@ -436,11 +467,14 @@ module Qless
       # click the 'track' button, and come back to verify that
       # it's now being tracked
       jid = q.put(Qless::Job, {})
+
       visit '/track'
       expect(page).to_not have_selector('a', text: /#{jid[0..5]}/i)
+
       visit "/jobs/#{jid}"
       first('i.icon-flag').click
       try_repeatedly { client.jobs[jid].tracked }
+
       visit '/track'
       expect(page).to have_selector('a', text: /#{jid[0..5]}/i)
     end
@@ -450,13 +484,15 @@ module Qless
       # back into the testing queue
       jid = q.put(Qless::Job, {})
       q.pop.complete
+
       visit "/jobs/#{jid}"
       # Get the job, check that it's complete
       expect(client.jobs[jid].state).to eq('complete')
       first('i.caret').click
       first('a', text: 'testing').click
 
-      # Reload the page to synchronize and ensure the AJAX request completes.
+      try_repeatedly { client.jobs[jid].state == 'waiting' }
+
       visit "/jobs/#{jid}"
 
       # Now get the job again, check it's waiting
@@ -468,17 +504,16 @@ module Qless
       # Put, pop, and fail a job, and then click the retry button
       jid = q.put(Qless::Job, {})
       q.pop.fail('foo', 'bar')
-      visit "/jobs/#{jid}"
-      # Get the job, check that it's failed
       expect(client.jobs[jid].state).to eq('failed')
+
+      visit "/jobs/#{jid}"
+
+      # Retry the job
       first('i.icon-repeat').click
 
-      # Now get hte jobs again, check that it's waiting
+      try_repeatedly { client.jobs[jid].state == 'waiting' }
+
       job = client.jobs[jid]
-      try_repeatedly do
-        job = client.jobs[jid]
-        job.state != 'waiting'
-      end
       expect(job.state).to eq('waiting')
       expect(job.queue_name).to eq('testing')
     end
@@ -486,6 +521,7 @@ module Qless
     it 'can cancel a single job', js: true do
       # Put, pop, and fail a job, and then click the retry button
       jid = q.put(Qless::Job, {})
+
       visit "/jobs/#{jid}"
       # Get the job, check that it's failed
       expect(client.jobs[jid].state).to eq('waiting')
@@ -494,12 +530,11 @@ module Qless
       expect(client.jobs[jid]).to be
       first('button.btn-danger').click
 
-      # Reload the page to synchronize and ensure the AJAX request completes.
+      try_repeatedly { client.jobs[jid].nil? }
+
       visit "/jobs/#{jid}"
 
       expect(page).to have_selector('h2', text: "#{jid} doesn't exist")
-      # /Now/ the job should be canceled
-      expect(client.jobs[jid]).to be_nil
     end
 
     it 'can visit the configuration' do
@@ -542,6 +577,7 @@ module Qless
       # that it's in, its data, and any failure information
       jid = q.put(Qless::Job, { foo: 'bar' })
       job = client.jobs[jid]
+
       visit "/jobs/#{jid}"
       # Make sure we see its klass_name, queue, state and data
       expect(page).to have_selector('h2', text: /#{job.klass}/i)
@@ -551,6 +587,7 @@ module Qless
 
       # Now let's pop the job and fail it just to make sure we see the error
       q.pop.fail('something-something', 'what-what')
+
       visit "/jobs/#{jid}"
       expect(page).to have_selector('pre', text: /what-what/im)
     end
@@ -567,6 +604,9 @@ module Qless
       q.pop(5).each { |job| job.fail('foo', 'foo-message') }
       bar = 5.times.map { |i| q.put(Qless::Job, {}) }
       q.pop(5).each { |job| job.fail('bar', 'bar-message') }
+
+      try_repeatedly { client.jobs[bar.last].state == 'failed' }
+
       visit '/failed'
       expect(page).to have_selector('li', text: /foo\D+5/i)
       expect(page).to have_selector('li', text: /bar\D+5/i)
@@ -602,6 +642,8 @@ module Qless
       bar = 5.times.map { |i| q.put(Qless::Job, {}) }
       q.pop(5).each { |job| job.fail('bar', 'bar-message') }
 
+      try_repeatedly { client.jobs[bar.last].state == 'failed' }
+
       visit '/failed'
       expect(page).to have_selector('li', text: /foo\D+5/i)
       expect(page).to have_selector('h2', text: /foo\D+5/i)
@@ -618,6 +660,8 @@ module Qless
       end).first
       expect(retry_button).to be
       retry_button.click
+
+      try_repeatedly { foo.all? { |jid| client.jobs[jid].state == 'waiting' } }
 
       # Now we shouldn't see any of those jobs, but we should
       # still see bar jobs
@@ -665,6 +709,7 @@ module Qless
         expect(client.jobs[jid].state).to eq('failed')
       end
       retry_button.click
+      try_repeatedly { foo.all? { |jid| client.jobs[jid].nil? } }
 
       # Now we shouldn't see any of those jobs, but we should
       # still see bar jobs
@@ -684,17 +729,16 @@ module Qless
 
     it 'can change a job\'s priority', js: true do
       jid = q.put(Qless::Job, {})
+
       visit "/jobs/#{jid}"
       expect(page).to_not have_selector('input[placeholder="Pri 25"]')
       expect(page).to have_selector('input[placeholder="Pri 0"]')
       first('input[placeholder="Pri 0"]').set(25)
       first('input[placeholder="Pri 0"]').trigger('blur')
-
-      # Now, we should make sure that the placeholder's updated,
       expect(page).to have_selector('input[placeholder="Pri 25"]')
 
-      # And reload the page to make sure it's stuck between reloads
-      sleep(1)
+      try_repeatedly { client.jobs[jid].priority == 25 }
+
       visit "/jobs/#{jid}"
       expect(page).to have_selector('input[placeholder="Pri 25"]')
       expect(page).to_not have_selector('input[placeholder="Pri 0"]')
@@ -702,12 +746,14 @@ module Qless
 
     it 'can add tags to a job', js: true do
       jid = q.put(Qless::Job, {})
+
       visit "/jobs/#{jid}"
       expect(page).to_not have_selector('.tag', text: 'foo')
       expect(page).to_not have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
+      try_repeatedly { client.jobs[jid].tags.length > 0 }
 
       visit "/jobs/#{jid}"
       expect(page).to have_selector('.tag', text: 'foo')
@@ -721,6 +767,7 @@ module Qless
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
+      try_repeatedly { client.jobs[jid].tags.length > 1 }
 
       # Now revisit the page and make sure it's happy
       visit("/jobs/#{jid}")
@@ -737,11 +784,13 @@ module Qless
       expect(page).to_not have_selector('.tag', text: 'whiz')
 
       first('.tag', :text => 'foo').sibling('button').click
+      try_repeatedly { client.jobs[jid].tags.length == 1 }
       # Wait for it to disappear
       expect(page).to_not have_selector('.tag', text: 'foo')
 
       first('.tag', :text => 'bar').sibling('button').click
       # Wait for it to disappear
+      try_repeatedly { client.jobs[jid].tags.length == 0 }
       expect(page).to_not have_selector('.tag', text: 'bar')
     end
 
@@ -759,15 +808,15 @@ module Qless
       first('input[placeholder="Add Tag"]').trigger('blur')
 
       first('.tag', text: 'foo').sibling('button').click
-      # Wait for it to disappear
+      try_repeatedly { client.jobs[jid].tags.length == 2 }
       expect(page).to have_no_selector('.tag', text: 'foo')
 
       first('.tag', text: 'bar').sibling('button').click
-      # Wait for it to disappear
+      try_repeatedly { client.jobs[jid].tags.length == 1 }
       expect(page).to have_no_selector('.tag', text: 'bar')
 
       first('.tag', text: 'whiz').sibling('button').click
-      # Wait for it to disappear
+      try_repeatedly { client.jobs[jid].tags.length == 0 }
       expect(page).to have_no_selector('.tag', text: 'whiz')
     end
 
@@ -798,7 +847,7 @@ module Qless
     it 'can visit /queues' do
       # We should be able to see all of the appropriate tabs,
       # We should be able to see all of the jobs
-      jid = q.put(Qless::Job, {})
+      q.put(Qless::Job, {})
 
       # We should see this job
       visit '/queues'
@@ -806,15 +855,17 @@ module Qless
 
       # Now let's pop off the job so that it's running
       job = q.pop
+
       visit '/queues'
       expect(page).to have_selector('h3', text: /1\D+0\D+0\D+0\D+0\D+0\D+0/)
       job.complete
 
       # And now for a throttled job
       client.throttles['one'].maximum = 1
-      q.put(Qless::Job, {}, throttles: ["one"])
-      q.put(Qless::Job, {}, throttles: ["one"])
+      q.put(Qless::Job, {}, throttles: ['one'])
+      q.put(Qless::Job, {}, throttles: ['one'])
       job1, job2 = q.pop(2)
+
       visit '/queues'
       expect(page).to have_selector('h3', text: /1\D+0\D+1\D+0\D+0\D+0\D+0/)
       job1.complete
@@ -822,6 +873,7 @@ module Qless
 
       # And now for a scheduled job
       job = client.jobs[q.put(Qless::Job, {}, delay: 600)]
+
       visit '/queues'
       expect(page).to have_selector('h3', text: /0\D+0\D+0\D+1\D+0\D+0\D+0/)
       job.cancel
@@ -829,6 +881,7 @@ module Qless
       # And now a dependent job
       job1 = client.jobs[q.put(Qless::Job, {})]
       job2 = client.jobs[q.put(Qless::Job, {}, depends: [job1.jid])]
+
       visit '/queues'
       expect(page).to have_selector('h3', text: /0\D+1\D+0\D+0\D+0\D+1\D+0/)
       job2.cancel
@@ -836,6 +889,7 @@ module Qless
 
       # And now a recurring job
       job = client.jobs[q.recur(Qless::Job, {}, 5)]
+
       visit '/queues'
       expect(page).to have_selector('h3', text: /0\D+0\D+0\D+0\D+0\D+0\D+1/)
       job.cancel
@@ -851,15 +905,17 @@ module Qless
       expect(page).to have_selector('h2', text: /#{jid[0...8]}/)
       # Now let's pop off the job so that it's running
       job = q.pop
+
       visit '/queues/testing/running'
       expect(page).to have_selector('h2', text: /#{jid[0...8]}/)
       job.complete
 
       # And now for a throttled job
       client.throttles['one'].maximum = 1
-      job1 = client.jobs[q.put(Qless::Job, {}, throttles: ["one"])]
-      job2 = client.jobs[q.put(Qless::Job, {}, throttles: ["one"])]
+      job1 = client.jobs[q.put(Qless::Job, {}, throttles: ['one'])]
+      job2 = client.jobs[q.put(Qless::Job, {}, throttles: ['one'])]
       q.pop(2)
+
       visit '/queues/testing/throttled'
       expect(page).to have_selector('h2', text: /#{job2.jid[0...8]}/)
       job1.cancel
@@ -867,19 +923,21 @@ module Qless
 
       # And now for a scheduled job
       job = client.jobs[q.put(Qless::Job, {}, delay: 600)]
+
       visit '/queues/testing/scheduled'
       expect(page).to have_selector('h2', text: /#{job.jid[0...8]}/)
       job.cancel
 
       # And now a dependent job
-      job = client.jobs[
-        q.put(Qless::Job, {}, depends: [q.put(Qless::Job, {})])]
+      job = client.jobs[q.put(Qless::Job, {}, depends: [q.put(Qless::Job, {})])]
+
       visit '/queues/testing/depends'
       expect(page).to have_selector('h2', text: /#{job.jid[0...8]}/)
       job.cancel
 
       # And now a recurring job
       job = client.jobs[q.recur(Qless::Job, {}, 5)]
+
       visit '/queues/testing/recurring'
       expect(page).to have_selector('h2', text: /#{job.jid[0...8]}/)
       job.cancel
@@ -896,11 +954,13 @@ module Qless
       expect(page).to have_selector('.tracked-row', text: /waiting/i)
       # Now let's pop off the job so that it's running
       job = q.pop
+
       visit '/'
       expect(page).to_not have_selector('.tracked-row', text: /waiting/i)
       expect(page).to have_selector('.tracked-row', text: /running/i)
       # Now let's complete the job and make sure it shows up again
       job.complete
+
       visit '/'
       expect(page).to_not have_selector('.tracked-row', text: /running/i)
       expect(page).to have_selector('.tracked-row', text: /complete/i)
@@ -909,10 +969,11 @@ module Qless
 
       # And now for a throttled job
       client.throttles['one'].maximum = 1
-      job1 = client.jobs[q.put(Qless::Job, {}, throttles: ["one"])]
-      job2 = client.jobs[q.put(Qless::Job, {}, throttles: ["one"])]
+      client.jobs[q.put(Qless::Job, {}, throttles: ['one'])]
+      job2 = client.jobs[q.put(Qless::Job, {}, throttles: ['one'])]
       job2.track
       q.pop(2)
+
       visit '/'
       expect(page).to have_selector('.tracked-row', text: /throttled/i)
       job2.untrack
@@ -920,6 +981,7 @@ module Qless
       # And now for a scheduled job
       job = client.jobs[q.put(Qless::Job, {}, delay: 600)]
       job.track
+
       visit '/'
       expect(page).to have_selector('.tracked-row', text: /scheduled/i)
       job.untrack
@@ -929,6 +991,7 @@ module Qless
       job = q.pop
       job.track
       job.fail('foo', 'bar')
+
       visit '/'
       expect(page).to have_selector('.tracked-row', text: /failed/i)
       job.untrack
@@ -937,6 +1000,7 @@ module Qless
       job = client.jobs[
         q.put(Qless::Job, {}, depends: [q.put(Qless::Job, {})])]
       job.track
+
       visit '/'
       expect(page).to have_selector('.tracked-row', text: /depends/i)
       job.untrack
@@ -973,14 +1037,15 @@ module Qless
 
     it 'can change recurring job priorities', js: true do
       jid = q.recur(Qless::Job, {}, 600)
+
       visit "/jobs/#{jid}"
       expect(page).to_not have_selector('input[placeholder="Pri 25"]')
       expect(page).to have_selector('input[placeholder="Pri 0"]')
       first('input[placeholder="Pri 0"]').set(25)
       first('input[placeholder="Pri 0"]').trigger('blur')
-
-      # Now, we should make sure that the placeholder's updated,
       expect(page).to have_selector('input[placeholder="Pri 25"]')
+
+      try_repeatedly { client.jobs[jid].priority == 25 }
 
       # And reload the page to make sure it's stuck between reloads
       visit "/jobs/#{jid}"
@@ -989,24 +1054,25 @@ module Qless
     end
 
     it 'can pause and unpause a queue', js: true do
-      10.times do
-        q.put(Qless::Job, {})
-      end
+      10.times { q.put(Qless::Job, {}) }
       visit '/'
 
       expect(q.pop).to be
       button = first('button[data-original-title="Pause"]')
       expect(button).to be
       button.click
+      try_repeatedly { q.paused? }
       expect(page).to have_selector('button[data-original-title="Unpause"]')
       expect(q.pop).to_not be
 
       first('button[data-original-title="Unpause"]').click
+      try_repeatedly { !q.paused? }
       expect(q.pop).to be
     end
 
     it 'can add tags to a recurring job', js: true do
       jid = q.put(Qless::Job, {})
+
       visit "/jobs/#{jid}"
       expect(page).to_not have_selector('.tag', text: 'foo')
       expect(page).to_not have_selector('.tag', text: 'bar')
@@ -1025,6 +1091,8 @@ module Qless
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
       first('input[placeholder="Add Tag"]').trigger('blur')
+
+      try_repeatedly { client.jobs[jid].tags.length == 2 }
 
       # Now revisit the page and make sure it's happy
       visit("/jobs/#{jid}")
