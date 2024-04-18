@@ -68,7 +68,7 @@ module Qless
       PAGE_SIZE = 25
       def pagination_values
         start = (current_page - 1) * PAGE_SIZE
-        [start, start + PAGE_SIZE]
+        [start, PAGE_SIZE]
       end
 
       def paginated(qless_object, method, *args)

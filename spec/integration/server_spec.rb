@@ -133,7 +133,7 @@ module Qless
       test_pagination 20, 1
     end
 
-    it 'can paginate jobs on a state filter tab' do
+    it 'can paginate jobs on the depends tab' do
       q.put(Qless::Job, {}, jid: 'parent-job')
 
       build_paginated_objects do |jid|
@@ -141,6 +141,25 @@ module Qless
       end
 
       visit "/queues/#{CGI.escape(q.name)}/depends"
+
+      test_pagination
+    end
+
+    it 'can paginate jobs on the throttled tab' do
+      throttle_id = 'paginate-throttles-throttle'
+      throttle = Throttle.new(throttle_id, client)
+      throttle.maximum = 1
+
+      q.put(Qless::Job, {}, throttles: [throttle_id])
+      q.pop
+
+      build_paginated_objects do |jid|
+        q.put(Qless::Job, {}, jid: jid, throttles: [throttle_id])
+        # These pops will fail and cause the jobs to become throttled
+        q.pop
+      end
+
+      visit "/queues/#{CGI.escape(q.name)}/throttled"
 
       test_pagination
     end
@@ -209,17 +228,17 @@ module Qless
     end
 
     it 'can set and delete job throttles', js: true do
-      t_id = 'wakka' # the throttle id
-      jid = q.put(Qless::Job, {}, throttles: [t_id])
+      throttle_id = 'delete-throttles-throttle'
+      jid = q.put(Qless::Job, {}, throttles: [throttle_id])
 
-      text_field_class = ".#{t_id}-maximum"
-      throttle = Throttle.new(t_id, client)
+      text_field_class = ".#{throttle_id}-maximum"
+      throttle = Throttle.new(throttle_id, client)
 
       expect(throttle.maximum).to eq(0)
 
       visit "/jobs/#{jid}"
 
-      expect(page).to have_content(t_id)
+      expect(page).to have_content(throttle_id)
       expect(first(text_field_class)['placeholder']).to eq('0')
 
       maximum = first(text_field_class)
@@ -240,19 +259,19 @@ module Qless
     end
 
     it 'can set the expiration for job throttles', js: true do
-      t_id = 'wakka' # the throttle id
-      jid = q.put(Qless::Job, {}, throttles: [t_id])
+      throttle_id = 'expire-throttles-throttle'
+      jid = q.put(Qless::Job, {}, throttles: [throttle_id])
 
-      maximum_field_class = ".#{t_id}-maximum"
-      expiration_field_class = ".#{t_id}-expiration"
-      throttle = Throttle.new(t_id, client)
+      maximum_field_class = ".#{throttle_id}-maximum"
+      expiration_field_class = ".#{throttle_id}-expiration"
+      throttle = Throttle.new(throttle_id, client)
 
       expect(throttle.maximum).to eq(0)
       expect(throttle.ttl).to eq(-2)
 
       visit "/jobs/#{jid}"
 
-      expect(page).to have_content(t_id)
+      expect(page).to have_content(throttle_id)
       expect(first(expiration_field_class)['placeholder']).to eq('-2')
 
       maximum = first(maximum_field_class)
