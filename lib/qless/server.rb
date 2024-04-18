@@ -206,6 +206,7 @@ module Qless
     end
 
     post '/throttle' do
+      request.body.rewind
       # Expects a JSON object: {'id': id, 'maximum': maximum}
       data = JSON.parse(request.body.read)
       if data['id'].nil? || data['maximum'].nil?
@@ -217,6 +218,7 @@ module Qless
     end
 
     put '/throttle' do
+      request.body.rewind
       # Expects a JSON object: {'id': id, 'expiration': expiration}
       data = JSON.parse(request.body.read)
       if data['id'].nil? || data['expiration'].nil?
@@ -228,6 +230,7 @@ module Qless
     end
 
     delete '/throttle' do
+      request.body.rewind
       # Expects a JSON object: {'id': id}
       data = JSON.parse(request.body.read)
       if data['id'].nil?
@@ -327,6 +330,7 @@ module Qless
 
     # These are the bits where we accept AJAX requests
     post '/track/?' do
+      request.body.rewind
       # Expects a JSON-encoded hash with a job id, and optionally some tags
       data = JSON.parse(request.body.read)
       job = client.jobs[data['id']]
@@ -347,6 +351,7 @@ module Qless
     end
 
     post '/untrack/?' do
+      request.body.rewind
       # Expects a JSON-encoded array of job ids to stop tracking
       jobs = JSON.parse(request.body.read).map { |jid| client.jobs[jid] }
       jobs.compact!
@@ -358,6 +363,7 @@ module Qless
     end
 
     post '/priority/?' do
+      request.body.rewind
       # Expects a JSON-encoded dictionary of jid => priority
       response = Hash.new
       r = JSON.parse(request.body.read)
@@ -373,6 +379,7 @@ module Qless
     end
 
     post '/pause/?' do
+      request.body.rewind
       # Expects JSON blob: {'queue': <queue>}
       r = JSON.parse(request.body.read)
       if r['queue']
@@ -384,6 +391,7 @@ module Qless
     end
 
     post '/unpause/?' do
+      request.body.rewind
       # Expects JSON blob: {'queue': <queue>}
       r = JSON.parse(request.body.read)
       if r['queue']
@@ -395,6 +403,7 @@ module Qless
     end
 
     post '/timeout/?' do
+      request.body.rewind
       # Expects JSON blob: {'jid': <jid>}
       r = JSON.parse(request.body.read)
       if r['jid']
@@ -406,6 +415,7 @@ module Qless
     end
 
     post '/tag/?' do
+      request.body.rewind
       # Expects a JSON-encoded dictionary of jid => [tag, tag, tag]
       response = Hash.new
       JSON.parse(request.body.read).each_pair do |jid, tags|
@@ -420,6 +430,7 @@ module Qless
     end
 
     post '/untag/?' do
+      request.body.rewind
       # Expects a JSON-encoded dictionary of jid => [tag, tag, tag]
       response = Hash.new
       JSON.parse(request.body.read).each_pair do |jid, tags|
@@ -434,6 +445,7 @@ module Qless
     end
 
     post '/move/?' do
+      request.body.rewind
       # Expects a JSON-encoded hash of id: jid, and queue: queue_name
       data = JSON.parse(request.body.read)
       if data['id'].nil? || data['queue'].nil?
@@ -450,6 +462,7 @@ module Qless
     end
 
     post '/undepend/?' do
+      request.body.rewind
       # Expects a JSON-encoded hash of id: jid, and queue: queue_name
       data = JSON.parse(request.body.read)
       if data['id'].nil?
@@ -466,6 +479,7 @@ module Qless
     end
 
     post '/retry/?' do
+      request.body.rewind
       # Expects a JSON-encoded hash of id: jid, and queue: queue_name
       data = JSON.parse(request.body.read)
       if data['id'].nil?
@@ -483,6 +497,7 @@ module Qless
 
     # Retry all the failures of a particular type
     post '/retryall/?' do
+      request.body.rewind
       # Expects a JSON-encoded hash of type: failure-type
       data = JSON.parse(request.body.read)
       if data['type'].nil?
@@ -498,6 +513,7 @@ module Qless
     end
 
     post '/cancel/?' do
+      request.body.rewind
       # Expects a JSON-encoded array of job ids to cancel
       jobs = JSON.parse(request.body.read).map { |jid| client.jobs[jid] }
       jobs.compact!
@@ -514,6 +530,7 @@ module Qless
     end
 
     post '/cancelall/?' do
+      request.body.rewind
       # Expects a JSON-encoded hash of type: failure-type
       data = JSON.parse(request.body.read)
       if data['type'].nil?
