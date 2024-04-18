@@ -1,4 +1,4 @@
--- Current SHA: 09dc4ef4bb3cf089ef285d0a92a51b9af398ca03
+-- Current SHA: 418e6bc99ebca5439bcd73905eb370e887911452
 -- This is a generated file
 -------------------------------------------------------------------------------
 -- Forward declarations to make everything happy
@@ -1494,8 +1494,8 @@ function Qless.queue(name)
   queue.throttled = {
     length = function()
       return (redis.call('zcard', queue:prefix('throttled')) or 0)
-    end, peek = function(now, min, max)
-      return redis.call('zrange', queue:prefix('throttled'), min, max)
+    end, peek = function(now, offset, count)
+      return redis.call('zrange', queue:prefix('throttled'), offset, offset + count - 1)
     end, add = function(...)
       if #arg > 0 then
         redis.call('zadd', queue:prefix('throttled'), unpack(arg))
