@@ -10,7 +10,7 @@ require 'capybara/poltergeist'
 require 'rack/test'
 
 Capybara.javascript_driver = :poltergeist
-Capybara.default_max_wait_time = 5
+Capybara.default_max_wait_time = 2
 
 def try_repeatedly
     attempts = 0
