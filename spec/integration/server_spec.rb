@@ -164,6 +164,16 @@ module Qless
       test_pagination
     end
 
+    it 'can paginate jobs on the waiting tab' do
+      build_paginated_objects do |jid|
+        q.put(Qless::Job, {}, jid: jid)
+      end
+
+      visit "/queues/#{CGI.escape(q.name)}/waiting"
+
+      test_pagination
+    end
+
     it 'can set and delete queue throttles', js: true do
       q.put(Qless::Job, {})
 
@@ -754,9 +764,10 @@ module Qless
       expect(page).to have_selector('input[placeholder="Pri 0"]')
       first('input[placeholder="Pri 0"]').set(25)
       first('input[placeholder="Pri 0"]').trigger('blur')
-      expect(page).to have_selector('input[placeholder="Pri 25"]')
 
       try_repeatedly { client.jobs[jid].priority == 25 }
+
+      expect(page).to have_selector('input[placeholder="Pri 25"]')
 
       visit "/jobs/#{jid}"
       expect(page).to have_selector('input[placeholder="Pri 25"]')

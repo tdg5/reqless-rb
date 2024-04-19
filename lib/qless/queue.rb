@@ -133,10 +133,13 @@ module Qless
     end
 
     # Peek at a work item
-    def peek(count = nil)
-      jids = JSON.parse(@client.call('peek', @name, (count || 1)))
+    def peek(offset_or_count = nil, count = nil)
+      actual_offset = offset_or_count && count ? offset_or_count : 0
+      actual_count = offset_or_count && count ? count : (offset_or_count || 1)
+      return_single_job = offset_or_count.nil? && count.nil?
+      jids = JSON.parse(@client.call('peek', @name, actual_offset, actual_count))
       jobs = jids.map { |j| Job.new(@client, j) }
-      count.nil? ? jobs[0] : jobs
+      return_single_job ? jobs[0] : jobs
     end
 
     def stats(date = nil)

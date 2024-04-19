@@ -1,4 +1,4 @@
--- Current SHA: 418e6bc99ebca5439bcd73905eb370e887911452
+-- Current SHA: 4d0b815ee9cad85a3940ba5ddd4a695fea908811
 -- This is a generated file
 local Qless = {
   ns = 'ql:'
@@ -1051,7 +1051,7 @@ function Qless.queue(name)
 
   queue.work = {
     peek = function(count)
-      if count == 0 then
+      if count <= 0 then
         return {}
       end
       local jids = {}
@@ -1174,15 +1174,15 @@ end
 
 function QlessQueue:prefix(group)
   if group then
-    return QlessQueue.ns..self.name..'-'..group
+    return QlessQueue.ns .. self.name .. '-' .. group
   else
-    return QlessQueue.ns..self.name
+    return QlessQueue.ns .. self.name
   end
 end
 
 function QlessQueue:stats(now, date)
   date = assert(tonumber(date),
-    'Stats(): Arg "date" missing or not a number: '.. (date or 'nil'))
+    'Stats(): Arg "date" missing or not a number: ' .. (date or 'nil'))
 
   local bin = date - (date % 86400)
 
@@ -1234,19 +1234,33 @@ function QlessQueue:stats(now, date)
   }
 end
 
-function QlessQueue:peek(now, count)
+function QlessQueue:peek(now, offset, count)
+  offset = assert(tonumber(offset),
+    'Peek(): Arg "offset" missing or not a number: ' .. tostring(offset))
+
   count = assert(tonumber(count),
     'Peek(): Arg "count" missing or not a number: ' .. tostring(count))
 
-  local jids = self.locks.expired(now, 0, count)
+  if count <= 0 then
+    return {}
+  end
 
-  self:check_recurring(now, count - #jids)
+  local count_with_offset = offset + count
 
-  self:check_scheduled(now, count - #jids)
+  local jids = self.locks.expired(now, 0, count_with_offset)
+  local remaining_capacity = count_with_offset - #jids
 
-  table_extend(jids, self.work.peek(count - #jids))
+  self:check_recurring(now, remaining_capacity)
 
-  return jids
+  self:check_scheduled(now, remaining_capacity)
+
+  table_extend(jids, self.work.peek(remaining_capacity))
+
+  if #jids < offset then
+    return {}
+  end
+
+  return {unpack(jids, offset + 1, count_with_offset)}
 end
 
 function QlessQueue:paused()
@@ -1686,6 +1700,9 @@ function QlessQueue:remove_job(jid)
 end
 
 function QlessQueue:check_recurring(now, count)
+  if count <= 0 then
+    return
+  end
   local moved = 0
   local r = self.recurring.peek(now, 0, count)
   for index, jid in ipairs(r) do
@@ -1745,6 +1762,9 @@ function QlessQueue:check_recurring(now, count)
 end
 
 function QlessQueue:check_scheduled(now, count)
+  if count <= 0 then
+    return
+  end
   local scheduled = self.scheduled.ready(now, 0, count)
   for index, jid in ipairs(scheduled) do
     local priority = tonumber(
@@ -2221,8 +2241,8 @@ QlessAPI.log = function(now, jid, message, data)
   job:history(now, message, data)
 end
 
-QlessAPI.peek = function(now, queue, count)
-  local jids = Qless.queue(queue):peek(now, count)
+QlessAPI.peek = function(now, queue, offset, count)
+  local jids = Qless.queue(queue):peek(now, offset, count)
   local response = {}
   for i, jid in ipairs(jids) do
     table.insert(response, Qless.job(jid):data())

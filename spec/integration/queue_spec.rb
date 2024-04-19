@@ -16,7 +16,7 @@ module Qless
         expect(queue.jobs.send(cmd)).to eq([])
       end
     end
-    
+
     it 'provides access to job counts' do
       queue.put('Foo', {})
       expect(queue.counts).to eq({

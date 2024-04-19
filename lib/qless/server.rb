@@ -185,7 +185,7 @@ module Qless
 
       jobs = []
       if tab == 'waiting'
-        jobs = queue.peek(20)
+        jobs = queue.peek(*pagination_values)
       elsif filtered_tabs.include?(tab)
         jobs = paginated(queue.jobs, tab).map { |jid| client.jobs[jid] }
       end
