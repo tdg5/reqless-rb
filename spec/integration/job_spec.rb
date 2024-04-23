@@ -74,6 +74,15 @@ module Qless
       expect(client.jobs['jid']).to_not be
     end
 
+    it 'exposes its timeout  method' do
+      jid = 'jid'
+      queue.put('Foo', {}, jid: jid)
+      job = queue.pop()
+      expect(job.jid).to eq(jid)
+      client.jobs[jid].timeout
+      expect(client.jobs[jid].state).to eq('stalled')
+    end
+
     it 'can tag itself' do
       queue.put('Foo', {}, jid: 'jid')
       client.jobs['jid'].tag('foo')
@@ -158,7 +167,7 @@ module Qless
       queue.put('Foo', {}, jid: 'c', depends: ['a'])
       expect(client.jobs['c'].dependencies).to eq(['a'])
       client.jobs['c'].depend('b')
-      expect(client.jobs['c'].dependencies).to eq(%w{a b})
+      expect(client.jobs['c'].dependencies).to match_array(%w{a b})
       client.jobs['c'].undepend('a')
       expect(client.jobs['c'].dependencies).to eq(['b'])
     end

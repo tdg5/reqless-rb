@@ -547,6 +547,27 @@ module Qless
       expect(job.queue_name).to eq('testing')
     end
 
+    it 'can timeout a single job', js: true do
+      # Put, pop, and timeout a job
+      jid = q.put(Qless::Job, {})
+      q.pop()
+      expect(client.jobs[jid].state).to eq('running')
+
+      visit "/jobs/#{jid}"
+      # Get the job, check that it's failed
+      timeout_button_matcher = 'button.btn-danger[data-original-title="Time out job"]'
+      first(timeout_button_matcher).click
+      # We should have to click the cancel button now
+      expect(client.jobs[jid]).to be
+      first(timeout_button_matcher).click
+
+      try_repeatedly { client.jobs[jid].state == 'stalled' }
+
+      visit "/jobs/#{jid}"
+
+      expect(page).to have_selector('h2', text: 'stalled')
+    end
+
     it 'can cancel a single job', js: true do
       # Put, pop, and fail a job, and then click the retry button
       jid = q.put(Qless::Job, {})
