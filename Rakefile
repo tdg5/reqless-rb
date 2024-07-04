@@ -22,29 +22,29 @@ end
 task default: [:spec, :check_coverage, :cane]
 
 namespace :core do
-  qless_core_dir = "./lib/qless/qless-core"
+  reqless_core_dir = "./lib/qless/reqless-core"
 
-  desc "Builds the qless-core lua scripts"
+  desc "Builds the reqless-core lua scripts"
   task :build do
-    Dir.chdir(qless_core_dir) do
+    Dir.chdir(reqless_core_dir) do
       sh "make clean && make"
-      sh "cp qless.lua ../lua"
-      sh "cp qless-lib.lua ../lua"
+      sh "cp reqless.lua ../lua"
+      sh "cp reqless-lib.lua ../lua"
     end
   end
 
   task :update_submodule do
-    Dir.chdir(qless_core_dir) do
-      sh "git checkout master"
+    Dir.chdir(reqless_core_dir) do
+      sh "git checkout main"
       sh "git pull --rebase"
     end
   end
 
-  desc "Updates qless-core and rebuilds it"
+  desc "Updates reqless-core and rebuilds it"
   task update: [:update_submodule, :build]
 
   namespace :verify do
-    script_files = %w[ lib/qless/lua/qless.lua lib/qless/lua/qless-lib.lua ]
+    script_files = %w[ lib/qless/lua/reqless.lua lib/qless/lua/reqless-lib.lua ]
 
     desc "Verifies the script has no uncommitted changes"
     task :clean do
@@ -63,7 +63,7 @@ namespace :core do
         Digest::MD5.hexdigest(File.read file)
       end
 
-      canonical_md5s = Dir.chdir(qless_core_dir) do
+      canonical_md5s = Dir.chdir(reqless_core_dir) do
         sh "make clean && make"
         script_files.map do |file|
           Digest::MD5.hexdigest(File.read(File.basename file))
@@ -71,7 +71,7 @@ namespace :core do
       end
 
       unless our_md5s == canonical_md5s
-        raise "The current scripts are out of date with qless-core"
+        raise "The current scripts are out of date with reqless-core"
       end
     end
   end

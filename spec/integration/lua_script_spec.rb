@@ -9,12 +9,12 @@ require 'spec_helper'
 module Qless
   describe LuaScript, :integration do
     let(:redis) { client.redis }
-    let(:script) { LuaScript.new('qless', redis) }
+    let(:script) { LuaScript.new('reqless', redis) }
 
     it 'does not make any redis requests upon initialization' do
       # Should not be invoking anything on redis
       expect {
-        LuaScript.new('qless', double('Redis'))
+        LuaScript.new('reqless', double('Redis'))
       }.not_to raise_error
     end
 
@@ -47,11 +47,11 @@ module Qless
 
   describe LuaPlugin, :integration do
     let(:script) do
-      "-- some comments\n return Qless.config.get(ARGV[1]) * ARGV[2]"
+      "-- some comments\n return Reqless.config.get(ARGV[1]) * ARGV[2]"
     end
     let(:plugin) { LuaPlugin.new("my_plugin", redis, script) }
 
-    it 'supports Qless lua plugins' do
+    it 'supports Reqless lua plugins' do
       client.config['heartbeat'] = 14
       expect(plugin.call('heartbeat', 3)).to eq(14 * 3)
     end

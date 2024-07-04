@@ -78,13 +78,13 @@ module Qless
   private
 
     def script_contents
-      @script_contents ||= [QLESS_LIB_CONTENTS, @plugin_contents].join("\n\n")
+      @script_contents ||= [REQLESS_LIB_CONTENTS, @plugin_contents].join("\n\n")
     end
 
     COMMENT_LINES_RE = /^\s*--.*$\n?/
 
-    QLESS_LIB_CONTENTS = File.read(
-      File.join(SCRIPT_ROOT, 'qless-lib.lua')
+    REQLESS_LIB_CONTENTS = File.read(
+      File.join(SCRIPT_ROOT, 'reqless-lib.lua')
     ).gsub(COMMENT_LINES_RE, '')
   end
 end

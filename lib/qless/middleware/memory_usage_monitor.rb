@@ -59,4 +59,3 @@ module Qless
     end
   end
 end
-

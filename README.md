@@ -4,7 +4,7 @@ qless [![Build Status](https://travis-ci.org/seomoz/qless.svg?branch=master)](ht
 Qless is a powerful `Redis`-based job queueing system inspired by
 [resque](https://github.com/defunkt/resque#readme),
 but built on a collection of Lua scripts, maintained in the
-[qless-core](https://github.com/seomoz/qless-core) repo.
+[reqless-core](https://github.com/tdg5/reqless-core) repo.
 
 Philosophy and Nomenclature
 ===========================
