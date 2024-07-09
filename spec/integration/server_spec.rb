@@ -593,13 +593,13 @@ module Qless
       # they appear as well
       visit '/config'
       expect(page).to have_selector('h2', text: /jobs-history-count/i)
-      expect(page).to have_selector('h2', text: /stats-history/i)
+      expect(page).to have_selector('h2', text: /max-job-history/i)
       expect(page).to have_selector('h2', text: /jobs-history/i)
 
       client.config['foo-bar'] = 50
       visit '/config'
       expect(page).to have_selector('h2', text: /jobs-history-count/i)
-      expect(page).to have_selector('h2', text: /stats-history/i)
+      expect(page).to have_selector('h2', text: /max-job-history/i)
       expect(page).to have_selector('h2', text: /jobs-history/i)
       expect(page).to have_selector('h2', text: /foo-bar/i)
     end

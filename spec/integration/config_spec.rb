@@ -18,13 +18,14 @@ module Qless
 
     it 'can get all configurations' do
       expect(client.config.all).to eq({
-        'heartbeat'          => 60,
         'application'        => 'reqless',
         'grace-period'       => 10,
+        'heartbeat'          => 60,
         'jobs-history'       => 604800,
-        'stats-history'      => 30,
-        'histogram-history'  => 7,
-        'jobs-history-count' => 50000
+        'jobs-history-count' => 50000,
+        'max-job-history'    => 100,
+        'max-pop-retry'      => 1,
+        'max-worker-age'     => 86400,
       })
     end
   end
