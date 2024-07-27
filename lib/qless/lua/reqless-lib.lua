@@ -1,4 +1,4 @@
--- Current SHA: d658205ece465f9b27ebd7aba93ededc4b2ae0ed
+-- Current SHA: be21dd39fba640234ed989fe40aaaefc31653dcc
 -- This is a generated file
 -------------------------------------------------------------------------------
 -- Forward declarations to make everything happy
@@ -302,60 +302,7 @@ function Reqless.tag(now, command, ...)
   assert(command,
     'Tag(): Arg "command" must be "add", "remove", "get" or "top"')
 
-  if command == 'add' then
-    local jid  = assert(arg[1], 'Tag(): Arg "jid" missing')
-    local tags = redis.call('hget', ReqlessJob.ns .. jid, 'tags')
-    -- If the job has been canceled / deleted, then return false
-    if tags then
-      -- Decode the json blob, convert to dictionary
-      tags = cjson.decode(tags)
-      local _tags = {}
-      for _, v in ipairs(tags) do _tags[v] = true end
-
-      -- Otherwise, add the job to the sorted set with that tags
-      for i=2, #arg do
-        local tag = arg[i]
-        if _tags[tag] == nil then
-          _tags[tag] = true
-          table.insert(tags, tag)
-        end
-        Reqless.job(jid):insert_tag(now, tag)
-      end
-
-      redis.call('hset', ReqlessJob.ns .. jid, 'tags', cjson.encode(tags))
-      return tags
-    end
-
-    error('Tag(): Job ' .. jid .. ' does not exist')
-  elseif command == 'remove' then
-    local jid  = assert(arg[1], 'Tag(): Arg "jid" missing')
-    local tags = redis.call('hget', ReqlessJob.ns .. jid, 'tags')
-    -- If the job has been canceled / deleted, then return false
-    if tags then
-      -- Decode the json blob, convert to dictionary
-      tags = cjson.decode(tags)
-      local _tags = {}
-      for _, v in ipairs(tags) do _tags[v] = true end
-
-      -- Otherwise, remove the job from the sorted set with that tags
-      for i=2, #arg do
-        local tag = arg[i]
-        _tags[tag] = nil
-        Reqless.job(jid):remove_tag(tag)
-      end
-
-      local results = {}
-      for _, tag in ipairs(tags) do
-        if _tags[tag] then
-          table.insert(results, tag)
-        end
-      end
-
-      redis.call('hset', ReqlessJob.ns .. jid, 'tags', cjson.encode(results))
-      return results
-    end
-    error('Tag(): Job ' .. jid .. ' does not exist')
-  elseif command == 'get' then
+  if command == 'get' then
     local tag    = assert(arg[1], 'Tag(): Arg "tag" missing')
     local offset = assert(tonumber(arg[2] or 0),
       'Tag(): Arg "offset" not a number: ' .. tostring(arg[2]))
@@ -369,9 +316,53 @@ function Reqless.tag(now, command, ...)
     local offset = assert(tonumber(arg[1] or 0) , 'Tag(): Arg "offset" not a number: ' .. tostring(arg[1]))
     local count  = assert(tonumber(arg[2] or 25), 'Tag(): Arg "count" not a number: ' .. tostring(arg[2]))
     return redis.call('zrevrangebyscore', 'ql:tags', '+inf', 2, 'limit', offset, count)
+  elseif command ~= 'add' and command ~= 'remove' then
+    error('Tag(): First argument must be "add", "remove", "get", or "top"')
   end
 
-  error('Tag(): First argument must be "add", "remove" or "get"')
+  local jid  = assert(arg[1], 'Tag(): Arg "jid" missing')
+  local tags = redis.call('hget', ReqlessJob.ns .. jid, 'tags')
+  -- If the job has been canceled / deleted, raise an error
+  if not tags then
+    error('Tag(): Job ' .. jid .. ' does not exist')
+  end
+
+  -- Decode the json blob, convert to dictionary
+  tags = cjson.decode(tags)
+  local _tags = {}
+  for _, v in ipairs(tags) do _tags[v] = true end
+
+  if command == 'add' then
+    -- Add the job to the sorted set with that tags
+    for i=2, #arg do
+      local tag = arg[i]
+      if _tags[tag] == nil then
+        _tags[tag] = true
+        table.insert(tags, tag)
+      end
+      Reqless.job(jid):insert_tag(now, tag)
+    end
+
+    redis.call('hset', ReqlessJob.ns .. jid, 'tags', cjson.encode(tags))
+    return tags
+  end
+
+  -- Remove the job from the sorted set with that tags
+  for i=2, #arg do
+    local tag = arg[i]
+    _tags[tag] = nil
+    Reqless.job(jid):remove_tag(tag)
+  end
+
+  local results = {}
+  for _, tag in ipairs(tags) do
+    if _tags[tag] then
+      table.insert(results, tag)
+    end
+  end
+
+  redis.call('hset', ReqlessJob.ns .. jid, 'tags', cjson.encode(results))
+  return results
 end
 
 -- Cancel(...)
@@ -652,15 +643,11 @@ function ReqlessJob:complete(now, worker, queue_name, raw_data, ...)
 
   self:throttles_release(now)
 
-  ----------------------------------------------------------
-  -- This is the massive stats update that we have to do
-  ----------------------------------------------------------
-  -- This is how long we've been waiting to get popped
-  -- local waiting = math.floor(now) - history[#history]['popped']
-  local time = tonumber(
+  -- Calculate how long the job has been running.
+  local popped_time = tonumber(
     redis.call('hget', ReqlessJob.ns .. self.jid, 'time') or now)
-  local waiting = now - time
-  queue:stat(now, 'run', waiting)
+  local run_time = now - popped_time
+  queue:stat(now, 'run', run_time)
   redis.call('hset', ReqlessJob.ns .. self.jid,
     'time', string.format("%.20f", now))
 
@@ -1179,18 +1166,17 @@ function ReqlessJob:priority(priority)
   if queue_name == nil then
     -- If the job doesn't exist, throw an error
     error('Priority(): Job ' .. self.jid .. ' does not exist')
-  elseif queue_name == '' then
-    -- Just adjust the priority
-    redis.call('hset', ReqlessJob.ns .. self.jid, 'priority', priority)
-    return priority
   end
 
-  -- Adjust the priority and see if it's a candidate for updating
-  -- its priority in the queue it's currently in
-  local queue = Reqless.queue(queue_name)
-  if queue.work.score(self.jid) then
-    queue.work.add(0, priority, self.jid)
+  -- See if the job is a candidate for updating its priority in the queue it's
+  -- currently in
+  if queue_name ~= '' then
+    local queue = Reqless.queue(queue_name)
+    if queue.work.score(self.jid) then
+      queue.work.add(0, priority, self.jid)
+    end
   end
+
   redis.call('hset', ReqlessJob.ns .. self.jid, 'priority', priority)
   return priority
 end
@@ -1224,7 +1210,7 @@ function ReqlessJob:timeout(now)
 
   queue.work.add(now, math.huge, self.jid)
   redis.call('hmset', ReqlessJob.ns .. self.jid,
-    'state', 'stalled', 'expires', 0)
+    'state', 'stalled', 'expires', 0, 'worker', '')
   local encoded = cjson.encode({
     jid = self.jid,
     event = 'lock_lost',
@@ -2143,98 +2129,91 @@ function ReqlessQueue:unfail(now, group, count)
 end
 
 -- Recur a job of type klass in this queue
-function ReqlessQueue:recur(now, jid, klass, raw_data, spec, ...)
-  assert(jid  , 'RecurringJob On(): Arg "jid" missing')
-  assert(klass, 'RecurringJob On(): Arg "klass" missing')
-  assert(spec , 'RecurringJob On(): Arg "spec" missing')
+function ReqlessQueue:recurAtInterval(now, jid, klass, raw_data, interval, offset, ...)
+  assert(jid  , 'Recur(): Arg "jid" missing')
+  assert(klass, 'Recur(): Arg "klass" missing')
   local data = assert(cjson.decode(raw_data),
-    'RecurringJob On(): Arg "data" not JSON: ' .. tostring(raw_data))
+    'Recur(): Arg "data" not JSON: ' .. tostring(raw_data))
 
-  -- At some point in the future, we may have different types of recurring
-  -- jobs, but for the time being, we only have 'interval'-type jobs
-  if spec == 'interval' then
-    local interval = assert(tonumber(arg[1]),
-      'Recur(): Arg "interval" not a number: ' .. tostring(arg[1]))
-    local offset   = assert(tonumber(arg[2]),
-      'Recur(): Arg "offset" not a number: '   .. tostring(arg[2]))
-    if interval <= 0 then
-      error('Recur(): Arg "interval" must be greater than 0')
-    end
-
-    -- Read in all the optional parameters. All of these must come in
-    -- pairs, so if we have an odd number of extra args, raise an error
-    if #arg % 2 == 1 then
-      error('Odd number of additional args: ' .. tostring(arg))
-    end
-
-    -- Read in all the optional parameters
-    local options = {}
-    for i = 3, #arg, 2 do options[arg[i]] = arg[i + 1] end
-    options.tags = assert(cjson.decode(options.tags or '{}'),
-      'Recur(): Arg "tags" must be JSON string array: ' .. tostring(
-        options.tags))
-    options.priority = assert(tonumber(options.priority or 0),
-      'Recur(): Arg "priority" not a number: ' .. tostring(
-        options.priority))
-    options.retries = assert(tonumber(options.retries  or 0),
-      'Recur(): Arg "retries" not a number: ' .. tostring(
-        options.retries))
-    options.backlog = assert(tonumber(options.backlog  or 0),
-      'Recur(): Arg "backlog" not a number: ' .. tostring(
-        options.backlog))
-    options.throttles = assert(cjson.decode(options['throttles'] or '{}'),
-      'Recur(): Arg "throttles" not JSON array: ' .. tostring(options['throttles']))
-
-    local count, old_queue = unpack(redis.call('hmget', 'ql:r:' .. jid, 'count', 'queue'))
-    count = count or 0
-
-    local throttles = options['throttles'] or {}
-
-    -- If it has previously been in another queue, then we should remove
-    -- some information about it
-    if old_queue then
-      Reqless.queue(old_queue).recurring.remove(jid)
-
-      for index, throttle_name in ipairs(throttles) do
-        if throttle_name == old_queue then
-          table.remove(throttles, index)
-        end
-      end
-    end
-
-    -- insert default queue throttle
-    table.insert(throttles, ReqlessQueue.ns .. self.name)
-
-    -- Do some insertions
-    redis.call('hmset', 'ql:r:' .. jid,
-      'jid'      , jid,
-      'klass'    , klass,
-      'data'     , raw_data,
-      'priority' , options.priority,
-      'tags'     , cjson.encode(options.tags or {}),
-      'state'    , 'recur',
-      'queue'    , self.name,
-      'type'     , 'interval',
-      -- How many jobs we've spawned from this
-      'count'    , count,
-      'interval' , interval,
-      'retries'  , options.retries,
-      'backlog'  , options.backlog,
-      'throttles', cjson.encode(throttles))
-    -- Now, we should schedule the next run of the job
-    self.recurring.add(now + offset, jid)
-
-    -- Lastly, we're going to make sure that this item is in the
-    -- set of known queues. We should keep this sorted by the
-    -- order in which we saw each of these queues
-    if redis.call('zscore', 'ql:queues', self.name) == false then
-      redis.call('zadd', 'ql:queues', now, self.name)
-    end
-
-    return jid
+  local interval = assert(tonumber(interval),
+    'Recur(): Arg "interval" not a number: ' .. tostring(interval))
+  local offset   = assert(tonumber(offset),
+    'Recur(): Arg "offset" not a number: '   .. tostring(offset))
+  if interval <= 0 then
+    error('Recur(): Arg "interval" must be greater than 0')
   end
 
-  error('Recur(): schedule type "' .. tostring(spec) .. '" unknown')
+  -- Read in all the optional parameters. All of these must come in
+  -- pairs, so if we have an odd number of extra args, raise an error
+  if #arg % 2 == 1 then
+    error('Recur(): Odd number of additional args: ' .. tostring(arg))
+  end
+
+  -- Read in all the optional parameters
+  local options = {}
+  for i = 1, #arg, 2 do options[arg[i]] = arg[i + 1] end
+  options.tags = assert(cjson.decode(options.tags or '{}'),
+    'Recur(): Arg "tags" must be JSON string array: ' .. tostring(
+      options.tags))
+  options.priority = assert(tonumber(options.priority or 0),
+    'Recur(): Arg "priority" not a number: ' .. tostring(
+      options.priority))
+  options.retries = assert(tonumber(options.retries  or 0),
+    'Recur(): Arg "retries" not a number: ' .. tostring(
+      options.retries))
+  options.backlog = assert(tonumber(options.backlog  or 0),
+    'Recur(): Arg "backlog" not a number: ' .. tostring(
+      options.backlog))
+  options.throttles = assert(cjson.decode(options['throttles'] or '{}'),
+    'Recur(): Arg "throttles" not JSON array: ' .. tostring(options['throttles']))
+
+  local count, old_queue = unpack(redis.call('hmget', 'ql:r:' .. jid, 'count', 'queue'))
+  count = count or 0
+
+  local throttles = options['throttles'] or {}
+
+  -- If it has previously been in another queue, then we should remove
+  -- some information about it
+  if old_queue then
+    Reqless.queue(old_queue).recurring.remove(jid)
+
+    for index, throttle_name in ipairs(throttles) do
+      if throttle_name == old_queue then
+        table.remove(throttles, index)
+      end
+    end
+  end
+
+  -- insert default queue throttle
+  table.insert(throttles, ReqlessQueue.ns .. self.name)
+
+  -- Do some insertions
+  redis.call('hmset', 'ql:r:' .. jid,
+    'jid'      , jid,
+    'klass'    , klass,
+    'data'     , raw_data,
+    'priority' , options.priority,
+    'tags'     , cjson.encode(options.tags or {}),
+    'state'    , 'recur',
+    'queue'    , self.name,
+    'type'     , 'interval',
+    -- How many jobs we've spawned from this
+    'count'    , count,
+    'interval' , interval,
+    'retries'  , options.retries,
+    'backlog'  , options.backlog,
+    'throttles', cjson.encode(throttles))
+  -- Now, we should schedule the next run of the job
+  self.recurring.add(now + offset, jid)
+
+  -- Lastly, we're going to make sure that this item is in the
+  -- set of known queues. We should keep this sorted by the
+  -- order in which we saw each of these queues
+  if redis.call('zscore', 'ql:queues', self.name) == false then
+    redis.call('zadd', 'ql:queues', now, self.name)
+  end
+
+  return jid
 end
 
 -- Return the length of the queue
@@ -2775,6 +2754,13 @@ function ReqlessThrottle:data()
     data.maximum = tonumber(throttle[2])
   end
 
+  return data
+end
+
+-- Like data, but includes ttl.
+function ReqlessThrottle:dataWithTtl()
+  local data = self:data()
+  data.ttl = self:ttl()
   return data
 end
 
