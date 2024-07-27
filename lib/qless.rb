@@ -48,17 +48,17 @@ module Qless
     end
 
     def complete(offset = 0, count = 25)
-      @client.call('jobs', 'complete', offset, count)
+      JSON.parse(@client.call('jobs.completed', offset, count))
     end
 
     def tracked
-      results = JSON.parse(@client.call('track'))
+      results = JSON.parse(@client.call('jobs.tracked'))
       results['jobs'] = results['jobs'].map { |j| Job.new(@client, j) }
       results
     end
 
     def tagged(tag, offset = 0, count = 25)
-      results = JSON.parse(@client.call('tag', 'get', tag, offset, count))
+      results = JSON.parse(@client.call('jobs.tagged', tag, offset, count))
       # Should be an empty array instead of an empty hash
       results['jobs'] = [] if results['jobs'] == {}
       results
@@ -66,9 +66,9 @@ module Qless
 
     def failed(t = nil, start = 0, limit = 25)
       if !t
-        return JSON.parse(@client.call('failed'))
+        return JSON.parse(@client.call('failureGroups.counts'))
       else
-        results = JSON.parse(@client.call('failed', t, start, limit))
+        results = JSON.parse(@client.call('jobs.failedByGroup', t, start, limit))
         results['jobs'] = multiget(*results['jobs'])
         results
       end
@@ -79,9 +79,9 @@ module Qless
     end
 
     def get(jid)
-      results = @client.call('get', jid)
+      results = @client.call('job.get', jid)
       if results.nil?
-        results = @client.call('recur.get', jid)
+        results = @client.call('recurringJob.get', jid)
         return nil if results.nil?
         return RecurringJob.new(@client, JSON.parse(results))
       end
@@ -89,7 +89,7 @@ module Qless
     end
 
     def multiget(*jids)
-      results = JSON.parse(@client.call('multiget', *jids))
+      results = JSON.parse(@client.call('job.getMulti', *jids))
       results.map do |data|
         Job.new(@client, data)
       end
@@ -104,11 +104,11 @@ module Qless
     end
 
     def counts
-      JSON.parse(@client.call('workers'))
+      JSON.parse(@client.call('workers.counts'))
     end
 
     def [](name)
-      JSON.parse(@client.call('workers', name))
+      JSON.parse(@client.call('worker.jobs', name))
     end
   end
 
@@ -120,7 +120,7 @@ module Qless
     end
 
     def counts
-      JSON.parse(@client.call('queues'))
+      JSON.parse(@client.call('queues.counts'))
     end
 
     def [](name)
@@ -219,23 +219,23 @@ module Qless
     end
 
     def track(jid)
-      call('track', 'track', jid)
+      call('job.track', jid)
     end
 
     def untrack(jid)
-      call('track', 'untrack', jid)
+      call('job.untrack', jid)
     end
 
     def tags(offset = 0, count = 100)
-      JSON.parse(call('tag', 'top', offset, count))
+      JSON.parse(call('tags.top', offset, count))
     end
 
     def deregister_workers(*worker_names)
-      call('worker.deregister', *worker_names)
+      call('worker.forget', *worker_names)
     end
 
     def bulk_cancel(jids)
-      call('cancel', jids)
+      call('job.cancel', jids)
     end
 
     def new_redis_connection

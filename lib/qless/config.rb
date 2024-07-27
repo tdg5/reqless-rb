@@ -20,7 +20,7 @@ module Qless
     # Get the specified `qless` configuration option, or if
     # none is provided, get the complete current configuration
     def all
-      JSON.parse(@client.call('config.get'))
+      JSON.parse(@client.call('config.getAll'))
     end
 
     # Restore this option to the default (remove this option)

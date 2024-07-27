@@ -154,7 +154,7 @@ module Qless
       @retries_left      = atts.fetch('remaining')
       @raw_queue_history = atts.fetch('history')
 
-      # This is a silly side-effect of Lua doing JSON parsing
+      # This is a silly side-effect of Lua doing JSON serialization
       @tags         = [] if @tags == {}
       @dependents   = [] if @dependents == {}
       @dependencies = [] if @dependencies == {}
@@ -164,7 +164,7 @@ module Qless
     end
 
     def priority=(priority)
-      @priority = priority if @client.call('priority', @jid, priority)
+      @priority = priority if @client.call('job.setPriority', @jid, priority)
     end
 
     def [](key)
@@ -269,7 +269,7 @@ module Qless
     # Move this from it's current queue into another
     def requeue(queue, opts = {})
       note_state_change :requeue do
-        @client.call('requeue', @client.worker_name, queue, @jid, @klass_name,
+        @client.call('job.requeue', @client.worker_name, queue, @jid, @klass_name,
                      *self.class.build_opts_array(self.enqueue_opts.merge!(opts))
         )
       end
@@ -282,7 +282,7 @@ module Qless
     def fail(group, message)
       note_state_change :fail do
         @client.call(
-          'fail',
+          'job.fail',
           @jid,
           @worker_name,
           group, message,
@@ -295,7 +295,7 @@ module Qless
     # Heartbeat a job
     def heartbeat
       @expires_at = @client.call(
-        'heartbeat',
+        'job.heartbeat',
         @jid,
         @worker_name,
         JSON.dump(@data))
@@ -311,9 +311,9 @@ module Qless
       note_state_change :complete do
         if nxt.nil?
           @client.call(
-            'complete', @jid, @worker_name, @queue_name, JSON.dump(@data))
+            'job.complete', @jid, @worker_name, @queue_name, JSON.dump(@data))
         else
-          @client.call('complete', @jid, @worker_name, @queue_name,
+          @client.call('job.completeAndRequeue', @jid, @worker_name, @queue_name,
                        JSON.dump(@data), 'next', nxt, 'delay',
                        options.fetch(:delay, 0), 'depends',
                        JSON.dump(options.fetch(:depends, [])))
@@ -325,57 +325,57 @@ module Qless
 
     def cancel
       note_state_change :cancel do
-        @client.call('cancel', @jid)
+        @client.call('job.cancel', @jid)
       end
     end
 
     def track
-      @client.call('track', 'track', @jid)
+      @client.call('job.track', @jid)
     end
 
     def untrack
-      @client.call('track', 'untrack', @jid)
+      @client.call('job.untrack', @jid)
     end
 
     def tag(*tags)
-      @client.call('tag', 'add', @jid, *tags)
+      JSON.parse(@client.call('job.addTag', @jid, *tags))
     end
 
     def untag(*tags)
-      @client.call('tag', 'remove', @jid, *tags)
+      JSON.parse(@client.call('job.removeTag', @jid, *tags))
     end
 
     def retry(delay = 0, group = nil, message = nil)
       note_state_change :retry do
         if group.nil?
           results = @client.call(
-            'retry', @jid, @queue_name, @worker_name, delay)
+            'job.retry', @jid, @queue_name, @worker_name, delay)
           results.nil? ? false : results
         else
           results = @client.call(
-            'retry', @jid, @queue_name, @worker_name, delay, group, message)
+            'job.retry', @jid, @queue_name, @worker_name, delay, group, message)
           results.nil? ? false : results
         end
       end
     end
 
     def depend(*jids)
-      !!@client.call('depends', @jid, 'on', *jids)
+      !!@client.call('job.addDependency', @jid, *jids)
     end
 
     def undepend(*jids)
-      !!@client.call('depends', @jid, 'off', *jids)
+      !!@client.call('job.removeDependency', @jid,  *jids)
     end
 
     def timeout
-      @client.call('timeout', @jid)
+      @client.call('job.timeout', @jid)
     end
 
     def log(message, data = nil)
       if data
-        @client.call('log', @jid, message, JSON.dump(data))
+        @client.call('job.log', @jid, message, JSON.dump(data))
       else
-        @client.call('log', @jid, message)
+        @client.call('job.log', @jid, message)
       end
     end
 
@@ -430,51 +430,51 @@ module Qless
     end
 
     def priority=(value)
-      @client.call('recur.update', @jid, 'priority', value)
+      @client.call('recurringJob.update', @jid, 'priority', value)
       @priority = value
     end
 
     def retries=(value)
-      @client.call('recur.update', @jid, 'retries', value)
+      @client.call('recurringJob.update', @jid, 'retries', value)
       @retries = value
     end
 
     def interval=(value)
-      @client.call('recur.update', @jid, 'interval', value)
+      @client.call('recurringJob.update', @jid, 'interval', value)
       @interval = value
     end
 
     def data=(value)
-      @client.call('recur.update', @jid, 'data', JSON.dump(value))
+      @client.call('recurringJob.update', @jid, 'data', JSON.dump(value))
       @data = value
     end
 
     def klass=(value)
-      @client.call('recur.update', @jid, 'klass', value.to_s)
+      @client.call('recurringJob.update', @jid, 'klass', value.to_s)
       @klass_name = value.to_s
     end
 
     def backlog=(value)
-      @client.call('recur.update', @jid, 'backlog', value.to_s)
+      @client.call('recurringJob.update', @jid, 'backlog', value.to_s)
       @backlog = value
     end
 
     def move(queue)
-      @client.call('recur.update', @jid, 'queue', queue)
+      @client.call('recurringJob.update', @jid, 'queue', queue)
       @queue_name = queue
     end
     alias requeue move # for API parity with normal jobs
 
     def cancel
-      @client.call('unrecur', @jid)
+      @client.call('recurringJob.cancel', @jid)
     end
 
     def tag(*tags)
-      @client.call('recur.tag', @jid, *tags)
+      @client.call('recurringJob.addTag', @jid, *tags)
     end
 
     def untag(*tags)
-      @client.call('recur.untag', @jid, *tags)
+      @client.call('recurringJob.removeTag', @jid, *tags)
     end
 
     def last_spawned_jid

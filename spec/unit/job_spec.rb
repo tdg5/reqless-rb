@@ -126,10 +126,10 @@ module Qless
       end
     end
 
-    shared_examples_for 'a method that calls lua' do |error, method, *args|
+    shared_examples_for 'a method that calls lua' do |error, method, api_call, *args|
       it "raises a #{error} if a lua error is raised" do
         expect(client).to receive(:call) do |command, *a|
-          expect(command).to eq(method.to_s)
+          expect(command).to eq(api_call)
           raise LuaScriptError.new('failed')
         end
 
@@ -142,7 +142,7 @@ module Qless
 
       it 'allows other errors to propagate' do
         expect(client).to receive(:call) do |command, *a|
-          expect(command).to eq(method.to_s)
+          expect(command).to eq(api_call)
           raise NoMethodError
         end
 
@@ -156,12 +156,12 @@ module Qless
 
     describe '#complete' do
       include_examples 'a method that calls lua',
-                       Job::CantCompleteError, :complete
+                       Job::CantCompleteError, :complete, 'job.complete'
     end
 
     describe '#fail' do
       include_examples 'a method that calls lua',
-                       Job::CantFailError, :fail, 'group', 'message'
+                       Job::CantFailError, :fail, 'job.fail', 'group', 'message'
     end
 
     [

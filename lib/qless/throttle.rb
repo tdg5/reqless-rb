@@ -25,7 +25,7 @@ module Qless
     end
 
     def locks
-      @client.call('throttle.locks', @name)
+      JSON.parse(@client.call('throttle.locks', @name))
     end
 
     def maximum
@@ -37,11 +37,11 @@ module Qless
     end
 
     def pending
-      @client.call('throttle.pending', @name)
+      JSON.parse(@client.call('throttle.pending', @name))
     end
 
     def ttl
-      @client.call('throttle.ttl', @name)
+      throttle_attrs['ttl'].to_i
     end
 
     private

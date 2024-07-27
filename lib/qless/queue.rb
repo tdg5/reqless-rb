@@ -14,27 +14,27 @@ module Qless
     end
 
     def running(start = 0, count = 25)
-      @client.call('jobs', 'running', @name, start, count)
+      JSON.parse(@client.call('queue.jobsByState', 'running', @name, start, count))
     end
 
     def throttled(start = 0, count = 25)
-      @client.call('jobs', 'throttled', @name, start, count)
+      JSON.parse(@client.call('queue.jobsByState', 'throttled', @name, start, count))
     end
 
     def stalled(start = 0, count = 25)
-      @client.call('jobs', 'stalled', @name, start, count)
+      JSON.parse(@client.call('queue.jobsByState', 'stalled', @name, start, count))
     end
 
     def scheduled(start = 0, count = 25)
-      @client.call('jobs', 'scheduled', @name, start, count)
+      JSON.parse(@client.call('queue.jobsByState', 'scheduled', @name, start, count))
     end
 
     def depends(start = 0, count = 25)
-      @client.call('jobs', 'depends', @name, start, count)
+      JSON.parse(@client.call('queue.jobsByState', 'depends', @name, start, count))
     end
 
     def recurring(start = 0, count = 25)
-      @client.call('jobs', 'recurring', @name, start, count)
+      JSON.parse(@client.call('queue.jobsByState', 'recurring', @name, start, count))
     end
   end
 
@@ -58,7 +58,7 @@ module Qless
     end
 
     def counts
-      JSON.parse(@client.call('queues', @name))
+      JSON.parse(@client.call('queue.counts', @name))
     end
 
     def heartbeat
@@ -78,12 +78,12 @@ module Qless
     end
 
     def pause(opts = {})
-      @client.call('pause', name)
-      @client.call('timeout', jobs.running(0, -1)) unless opts[:stopjobs].nil?
+      @client.call('queue.pause', name)
+      @client.call('job.timeout', jobs.running(0, -1)) unless opts[:stopjobs].nil?
     end
 
     def unpause
-      @client.call('unpause', name)
+      @client.call('queue.unpause', name)
     end
 
     # Put the described job in this queue
@@ -95,7 +95,7 @@ module Qless
     def put(klass, data, opts = {})
       opts = job_options(klass, data, opts)
       @client.call(
-        'put',
+        'queue.put',
         worker_name, @name,
         (opts[:jid] || Qless.generate_jid),
         klass.is_a?(String) ? klass : klass.name,
@@ -112,12 +112,12 @@ module Qless
     def recur(klass, data, interval, opts = {})
       opts = job_options(klass, data, opts)
       @client.call(
-        'recur',
+        'queue.recurAtInterval',
         @name,
         (opts[:jid] || Qless.generate_jid),
         klass.is_a?(String) ? klass : klass.name,
         JSON.generate(data),
-        'interval', interval, opts.fetch(:offset, 0),
+        interval, opts.fetch(:offset, 0),
         'priority', opts.fetch(:priority, 0),
         'tags', JSON.generate(opts.fetch(:tags, [])),
         'retries', opts.fetch(:retries, 5),
@@ -127,7 +127,7 @@ module Qless
 
     # Pop a work item off the queue
     def pop(count = nil)
-      jids = JSON.parse(@client.call('pop', @name, worker_name, (count || 1)))
+      jids = JSON.parse(@client.call('queue.pop', @name, worker_name, (count || 1)))
       jobs = jids.map { |j| Job.new(@client, j) }
       count.nil? ? jobs[0] : jobs
     end
@@ -137,13 +137,13 @@ module Qless
       actual_offset = offset_or_count && count ? offset_or_count : 0
       actual_count = offset_or_count && count ? count : (offset_or_count || 1)
       return_single_job = offset_or_count.nil? && count.nil?
-      jids = JSON.parse(@client.call('peek', @name, actual_offset, actual_count))
+      jids = JSON.parse(@client.call('queue.peek', @name, actual_offset, actual_count))
       jobs = jids.map { |j| Job.new(@client, j) }
       return_single_job ? jobs[0] : jobs
     end
 
     def stats(date = nil)
-      JSON.parse(@client.call('stats', @name, (date || Time.now.to_f)))
+      JSON.parse(@client.call('queue.stats', @name, (date || Time.now.to_f)))
     end
 
     # How many items in the queue?

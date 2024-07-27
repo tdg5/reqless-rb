@@ -31,7 +31,7 @@ module Qless
       it 'provides access to worker stats' do
         # Put the job, there should be no workers
         queue.put('Foo', {}, jid: 'jid')
-        expect(client.workers.counts).to eq({})
+        expect(client.workers.counts).to eq([])
 
         # Pop a job and we have some information
         queue.pop
@@ -53,7 +53,7 @@ module Qless
 
         # Deregister and make sure it goes away
         client.deregister_workers(queue.worker_name)
-        expect(client.workers.counts).to eq({})
+        expect(client.workers.counts).to eq([])
       end
     end
 
