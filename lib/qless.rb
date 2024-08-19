@@ -15,6 +15,7 @@ end
 require 'qless/version'
 require 'qless/config'
 require 'qless/queue'
+require 'qless/queue_priority_pattern'
 require 'qless/throttle'
 require 'qless/job'
 require 'qless/lua_script'
@@ -146,6 +147,51 @@ module Qless
     end
   end
 
+  class ClientQueuePatterns
+    def initialize(client)
+      @client = client
+    end
+
+    def get_queue_identifier_patterns
+      serialized_patterns = @client.call('queueIdentifierPatterns.getAll')
+      identifiers_with_serialized_patterns = JSON.parse(serialized_patterns)
+      Hash[
+        identifiers_with_serialized_patterns.map do |identifier, serialized_pattern|
+          [identifier, JSON.parse(serialized_pattern)]
+        end
+      ]
+    end
+
+    def set_queue_identifier_patterns(identifier_patterns)
+      args = identifier_patterns.flat_map do |identifier, pattern|
+        [identifier, JSON.dump(pattern)]
+      end
+      @client.call('queueIdentifierPatterns.setAll', *args)
+    end
+
+    def get_queue_priority_patterns
+      serialized_priority_patterns_json = @client.call('queuePriorityPatterns.getAll')
+      serialized_priority_patterns = JSON.parse(serialized_priority_patterns_json)
+      serialized_priority_patterns.map do |serialized_priority_pattern|
+        priority_pattern = JSON.parse(serialized_priority_pattern)
+        QueuePriorityPattern.new(
+          priority_pattern['pattern'],
+          priority_pattern.fetch('fairly', false),
+        )
+      end
+    end
+
+    def set_queue_priority_patterns(queue_priority_patterns)
+      serialized_patterns = queue_priority_patterns.map do |queue_priority_pattern|
+        JSON.dump({
+          'pattern': queue_priority_pattern.pattern,
+          'fairly': queue_priority_pattern.should_distribute_fairly,
+        })
+      end
+      @client.call('queuePriorityPatterns.setAll', *serialized_patterns)
+    end
+  end
+
   # A class for interacting with events. Not meant to be instantiated directly,
   # it's accessed through Client#events
   class ClientEvents
@@ -179,8 +225,7 @@ module Qless
 
   # The client for interacting with Qless
   class Client
-    # Lua script
-    attr_reader :_qless, :config, :redis, :jobs, :queues, :throttles, :workers
+    attr_reader :_qless, :config, :redis, :jobs, :queue_patterns, :queues, :throttles, :workers
     attr_accessor :worker_name
 
     def initialize(options = {})
@@ -199,6 +244,7 @@ module Qless
       @jobs    = ClientJobs.new(self)
       @queues  = ClientQueues.new(self)
       @throttles  = ClientThrottles.new(self)
+      @queue_patterns = ClientQueuePatterns.new(self)
       @workers = ClientWorkers.new(self)
       @worker_name = [Socket.gethostname, Process.pid.to_s].join('-')
     end

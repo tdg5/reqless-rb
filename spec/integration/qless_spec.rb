@@ -1,9 +1,7 @@
 # Encoding: utf-8
 
-# The things we're testing
 require 'qless'
 
-# Spec stuff
 require 'spec_helper'
 
 module Qless

@@ -1,4 +1,4 @@
--- Current SHA: c89ea35ba45aee61c5c6baeb10d53fb503287a5e
+-- Current SHA: 8b6600adb988e7f4922f606798b6ad64c06a245d
 -- This is a generated file
 -- cjson can't tell an empty array from an empty object, so empty arrays end up
 -- encoded as objects. This function makes empty arrays look like empty arrays.
@@ -470,7 +470,8 @@ end
 -- Configuration interactions
 -------------------------------------------------------------------------------
 
--- This represents our default configuration settings
+-- This represents our default configuration settings. Redis hash values are
+-- strings, so use strings for the defaults for more consistent typing.
 Reqless.config.defaults = {
   ['application']        = 'reqless',
   ['grace-period']       = '10',
@@ -2523,6 +2524,95 @@ function ReqlessQueue.counts(now, name)
     table.insert(response, ReqlessQueue.counts(now, qname))
   end
   return response
+end
+local ReqlessQueuePatterns = {
+  default_identifiers_default_pattern = '["*"]',
+  ns = Reqless.ns .. "qp:",
+}
+ReqlessQueuePatterns.__index = ReqlessQueuePatterns
+
+ReqlessQueuePatterns['getIdentifierPatterns'] = function(now)
+  local reply = redis.call('hgetall', ReqlessQueuePatterns.ns .. 'identifiers')
+
+  if #reply == 0 then
+    -- Check legacy key
+    reply = redis.call('hgetall', 'qmore:dynamic')
+  end
+
+  -- Include default pattern in case identifier patterns have never been set.
+  local identifierPatterns = {
+    ['default'] = ReqlessQueuePatterns.default_identifiers_default_pattern,
+  }
+  for i = 1, #reply, 2 do
+    identifierPatterns[reply[i]] = reply[i + 1]
+  end
+
+  return identifierPatterns
+end
+
+-- Each key is a string and each value is string containing a JSON list of
+-- patterns.
+ReqlessQueuePatterns['setIdentifierPatterns'] = function(now, ...)
+  if #arg % 2 == 1 then
+    error('Odd number of identifier patterns: ' .. tostring(arg))
+  end
+  local key = ReqlessQueuePatterns.ns .. 'identifiers'
+
+  local goodDefault = false;
+  local identifierPatterns = {}
+  for i = 1, #arg, 2 do
+    local key = arg[i]
+    local serializedValues = arg[i + 1]
+
+    -- Ensure that the value is valid JSON.
+    local values = cjson.decode(serializedValues)
+
+    -- Only write the value if there are items in the list.
+    if #values > 0 then
+      if key == 'default' then
+        goodDefault = true
+      end
+      table.insert(identifierPatterns, key)
+      table.insert(identifierPatterns, serializedValues)
+    end
+  end
+
+  -- Ensure some kind of default value is persisted.
+  if not goodDefault then
+    table.insert(identifierPatterns, "default")
+    table.insert(
+      identifierPatterns,
+      ReqlessQueuePatterns.default_identifiers_default_pattern
+    )
+  end
+
+  -- Clear out the legacy key too
+  redis.call('del', key, 'qmore:dynamic')
+  redis.call('hset', key, unpack(identifierPatterns))
+end
+
+ReqlessQueuePatterns['getPriorityPatterns'] = function(now)
+  local reply = redis.call('lrange', ReqlessQueuePatterns.ns .. 'priorities', 0, -1)
+
+  if #reply == 0 then
+    -- Check legacy key
+    reply = redis.call('lrange', 'qmore:priority', 0, -1)
+  end
+
+  return reply
+end
+
+-- Each key is a string and each value is a string containing a JSON object
+-- where the JSON object has a shape like:
+-- {"fairly": true, "pattern": ["string", "string", "string"]}
+ReqlessQueuePatterns['setPriorityPatterns'] = function(now, ...)
+  local key = ReqlessQueuePatterns.ns .. 'priorities'
+  redis.call('del', key)
+  -- Clear out the legacy key
+  redis.call('del', 'qmore:priority')
+  if #arg > 0 then
+    redis.call('rpush', key, unpack(arg))
+  end
 end
 -- Get all the attributes of this particular job
 function ReqlessRecurringJob:data()

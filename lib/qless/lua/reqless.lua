@@ -1,4 +1,4 @@
--- Current SHA: c89ea35ba45aee61c5c6baeb10d53fb503287a5e
+-- Current SHA: 8b6600adb988e7f4922f606798b6ad64c06a245d
 -- This is a generated file
 local function cjsonArrayDegenerationWorkaround(array)
   if #array == 0 then
@@ -1896,6 +1896,82 @@ function ReqlessQueue.counts(now, name)
   end
   return response
 end
+local ReqlessQueuePatterns = {
+  default_identifiers_default_pattern = '["*"]',
+  ns = Reqless.ns .. "qp:",
+}
+ReqlessQueuePatterns.__index = ReqlessQueuePatterns
+
+ReqlessQueuePatterns['getIdentifierPatterns'] = function(now)
+  local reply = redis.call('hgetall', ReqlessQueuePatterns.ns .. 'identifiers')
+
+  if #reply == 0 then
+    reply = redis.call('hgetall', 'qmore:dynamic')
+  end
+
+  local identifierPatterns = {
+    ['default'] = ReqlessQueuePatterns.default_identifiers_default_pattern,
+  }
+  for i = 1, #reply, 2 do
+    identifierPatterns[reply[i]] = reply[i + 1]
+  end
+
+  return identifierPatterns
+end
+
+ReqlessQueuePatterns['setIdentifierPatterns'] = function(now, ...)
+  if #arg % 2 == 1 then
+    error('Odd number of identifier patterns: ' .. tostring(arg))
+  end
+  local key = ReqlessQueuePatterns.ns .. 'identifiers'
+
+  local goodDefault = false;
+  local identifierPatterns = {}
+  for i = 1, #arg, 2 do
+    local key = arg[i]
+    local serializedValues = arg[i + 1]
+
+    local values = cjson.decode(serializedValues)
+
+    if #values > 0 then
+      if key == 'default' then
+        goodDefault = true
+      end
+      table.insert(identifierPatterns, key)
+      table.insert(identifierPatterns, serializedValues)
+    end
+  end
+
+  if not goodDefault then
+    table.insert(identifierPatterns, "default")
+    table.insert(
+      identifierPatterns,
+      ReqlessQueuePatterns.default_identifiers_default_pattern
+    )
+  end
+
+  redis.call('del', key, 'qmore:dynamic')
+  redis.call('hset', key, unpack(identifierPatterns))
+end
+
+ReqlessQueuePatterns['getPriorityPatterns'] = function(now)
+  local reply = redis.call('lrange', ReqlessQueuePatterns.ns .. 'priorities', 0, -1)
+
+  if #reply == 0 then
+    reply = redis.call('lrange', 'qmore:priority', 0, -1)
+  end
+
+  return reply
+end
+
+ReqlessQueuePatterns['setPriorityPatterns'] = function(now, ...)
+  local key = ReqlessQueuePatterns.ns .. 'priorities'
+  redis.call('del', key)
+  redis.call('del', 'qmore:priority')
+  if #arg > 0 then
+    redis.call('rpush', key, unpack(arg))
+  end
+end
 function ReqlessRecurringJob:data()
   local job = redis.call(
     'hmget', 'ql:r:' .. self.jid, 'jid', 'klass', 'state', 'queue',
@@ -2162,10 +2238,8 @@ end
 local ReqlessAPI = {}
 
 ReqlessAPI['config.get'] = function(now, key)
-  if key then
-    return Reqless.config.get(key)
-  end
-  return ReqlessAPI['config.getAll'](now)
+  assert(key, "config.get(): Argument 'key' missing")
+  return Reqless.config.get(key)
 end
 
 ReqlessAPI['config.getAll'] = function(now)
@@ -2361,6 +2435,22 @@ end
 
 ReqlessAPI['queue.unpause'] = function(now, ...)
   ReqlessQueue.unpause(unpack(arg))
+end
+
+ReqlessAPI['queueIdentifierPatterns.getAll'] = function(now)
+  return cjson.encode(ReqlessQueuePatterns.getIdentifierPatterns(now))
+end
+
+ReqlessAPI['queueIdentifierPatterns.setAll'] = function(now, ...)
+  ReqlessQueuePatterns.setIdentifierPatterns(now, unpack(arg))
+end
+
+ReqlessAPI['queuePriorityPatterns.getAll'] = function(now)
+  return cjsonArrayDegenerationWorkaround(ReqlessQueuePatterns.getPriorityPatterns(now))
+end
+
+ReqlessAPI['queuePriorityPatterns.setAll'] = function(now, ...)
+  ReqlessQueuePatterns.setPriorityPatterns(now, unpack(arg))
 end
 
 ReqlessAPI['queues.counts'] = function(now)
