@@ -6,11 +6,37 @@ require 'yaml'
 require 'qless'
 require 'qless/server'
 require 'capybara/rspec'
-require 'capybara/poltergeist'
 require 'rack/test'
+require 'selenium-webdriver'
 
-Capybara.javascript_driver = :poltergeist
+Capybara.register_driver :remote_selenium_headless do |app|
+  options = Selenium::WebDriver::Chrome::Options.new
+  options.add_argument('--headless')
+
+  selenium_host = ENV.fetch('SELENIUM_HOST', 'localhost')
+  selenium_port = ENV.fetch('SELENIUM_PORT', 4444)
+  Capybara::Selenium::Driver.new(
+    app,
+    browser: :remote,
+    url: "http://#{selenium_host}:#{selenium_port}/wd/hub",
+    options: options,
+  )
+end
+
+Capybara.javascript_driver = :remote_selenium_headless
 Capybara.default_max_wait_time = 2
+
+capybara_server_host = ENV.fetch('CAPYBARA_SERVER_HOST', 'localhost')
+capybara_server_port = ENV.fetch('CAPYBARA_SERVER_PORT', 4000)
+Capybara.configure do |config|
+  config.server_host = capybara_server_host
+  config.server_port = capybara_server_port
+end
+
+def trigger_blur
+  # Click somewhere else to trigger blur event
+  first('body').click
+end
 
 def try_repeatedly(max_attempts = 10)
     attempts = 0
@@ -36,16 +62,6 @@ module Qless
 
     before(:all) do
       Capybara.app = Qless::Server.new(Qless::Client.new(redis_config))
-    end
-
-    # Ensure the phantomjs process doesn't live past these tests.
-    # Otherwise, they are additional child processes that interfere
-    # with the tests for the forking server, since it uses
-    # `wait2` to wait on any child process.
-    after(:all) do
-      Capybara.using_driver(:poltergeist) do
-        Capybara.current_session.driver.quit
-      end
     end
 
     it 'can visit each top-nav tab' do
@@ -187,7 +203,7 @@ module Qless
 
       maximum = first(text_field_class)
       maximum.set(3)
-      maximum.trigger('blur')
+      trigger_blur
 
       try_repeatedly { q.throttle.maximum == 3 }
 
@@ -217,7 +233,7 @@ module Qless
 
       maximum = first(maximum_field_class)
       maximum.set(3)
-      maximum.trigger('blur')
+      trigger_blur
 
       expect(first(maximum_field_class)['value']).to eq('3')
       try_repeatedly { q.throttle.maximum == 3 }
@@ -225,7 +241,7 @@ module Qless
 
       expiration = first(expiration_field_class)
       expiration.set(1)
-      expiration.trigger('blur')
+      trigger_blur
 
       try_repeatedly(15) { q.throttle.ttl == -2 }
 
@@ -253,7 +269,7 @@ module Qless
 
       maximum = first(text_field_class)
       maximum.set(3)
-      maximum.trigger('blur')
+      trigger_blur
 
       try_repeatedly { throttle.maximum == 3 }
 
@@ -286,7 +302,7 @@ module Qless
 
       maximum = first(maximum_field_class)
       maximum.set(3)
-      maximum.trigger('blur')
+      trigger_blur
 
       try_repeatedly { throttle.maximum == 3 }
 
@@ -295,7 +311,7 @@ module Qless
 
       expiration = first(expiration_field_class)
       expiration.set(1)
-      expiration.trigger('blur')
+      trigger_blur
 
       try_repeatedly(15) { throttle.ttl == -2 }
 
@@ -784,7 +800,7 @@ module Qless
       expect(page).to_not have_selector('input[placeholder="Pri 25"]')
       expect(page).to have_selector('input[placeholder="Pri 0"]')
       first('input[placeholder="Pri 0"]').set(25)
-      first('input[placeholder="Pri 0"]').trigger('blur')
+      trigger_blur
 
       try_repeatedly { client.jobs[jid].priority == 25 }
 
@@ -803,7 +819,7 @@ module Qless
       expect(page).to_not have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
       try_repeatedly { client.jobs[jid].tags.length > 0 }
 
       visit "/jobs/#{jid}"
@@ -811,13 +827,13 @@ module Qless
       expect(page).to_not have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('bar')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
 
       expect(page).to have_selector('.tag', text: 'foo')
       expect(page).to have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
       try_repeatedly { client.jobs[jid].tags.length > 1 }
 
       # Now revisit the page and make sure it's happy
@@ -852,11 +868,11 @@ module Qless
       expect(page).to_not have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
       first('input[placeholder="Add Tag"]').set('bar')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
       first('input[placeholder="Add Tag"]').set('whiz')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
 
       first('.tag', text: 'foo').sibling('button').click
       try_repeatedly { client.jobs[jid].tags.length == 2 }
@@ -1093,7 +1109,7 @@ module Qless
       expect(page).to_not have_selector('input[placeholder="Pri 25"]')
       expect(page).to have_selector('input[placeholder="Pri 0"]')
       first('input[placeholder="Pri 0"]').set(25)
-      first('input[placeholder="Pri 0"]').trigger('blur')
+      trigger_blur
       expect(page).to have_selector('input[placeholder="Pri 25"]')
 
       try_repeatedly { client.jobs[jid].priority == 25 }
@@ -1129,19 +1145,19 @@ module Qless
       expect(page).to_not have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
 
       expect(page).to have_selector('.tag', text: 'foo')
       expect(page).to_not have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('bar')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
 
       expect(page).to have_selector('.tag', text: 'foo')
       expect(page).to have_selector('.tag', text: 'bar')
       expect(page).to_not have_selector('.tag', text: 'whiz')
       first('input[placeholder="Add Tag"]').set('foo')
-      first('input[placeholder="Add Tag"]').trigger('blur')
+      trigger_blur
 
       try_repeatedly { client.jobs[jid].tags.length == 2 }
 

@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   redis:
     image: redis:7.2.4
@@ -13,9 +11,35 @@ services:
     depends_on:
       - redis
     environment:
-      REQLESS_UI_REDIS_URL: redis://redis:6379/0
+      REQLESS_UI_DB_URL: redis://redis:6379/0
       REQLESS_UI_HOST: 0.0.0.0
-    image: tdg5/reqless-ui:0.0.8
+    image: tdg5/reqless-ui:0.1.2
     ports:
       - "9292:9292"
     restart: "no"
+
+  selenium_chrome:
+    image: selenium/standalone-chrome:112.0
+    ports:
+      - "4444:4444"
+    restart: "no"
+    volumes:
+      - "/dev/shm:/dev/shm"
+
+  test:
+    build:
+      context: .
+    depends_on:
+      - redis
+      - selenium_chrome
+    environment:
+      CAPYBARA_SERVER_HOST: test
+      CAPYBARA_SERVER_PORT: 4000
+      REDIS_HOST: redis
+      SELENIUM_HOST: selenium_chrome
+      SELENIUM_PORT: 4444
+    ports:
+      - "4000:4000"
+    restart: "no"
+    volumes:
+      - ".:/app"

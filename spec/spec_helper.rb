@@ -42,12 +42,15 @@ module RedisHelpers
     if File.exist?('./spec/redis.config.yml')
       @redis_config = YAML.load_file('./spec/redis.config.yml')
     else
-      @redis_config = {}
+      @redis_config = {
+        :db => ENV.fetch('REDIS_DB', 0),
+        :host => ENV.fetch('REDIS_HOST', 'localhost'),
+        :port => ENV.fetch('REDIS_PORT', 6379),
+      }
     end
   end
 
   def redis_url
-    return 'redis://localhost:6379/0' if redis_config.empty?
     c = redis_config
     "redis://#{c[:host]}:#{c[:port]}/#{c.fetch(:db, 0)}"
   end
