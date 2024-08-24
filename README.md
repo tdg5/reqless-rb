@@ -1,7 +1,7 @@
-qless [![Build Status](https://travis-ci.org/seomoz/qless.svg?branch=master)](https://travis-ci.org/seomoz/qless)
+reqless
 =====
 
-Qless is a powerful `Redis`-based job queueing system inspired by
+Reqless is a powerful `Redis`-based job queueing system inspired by
 [resque](https://github.com/defunkt/resque#readme),
 but built on a collection of Lua scripts, maintained in the
 [reqless-core](https://github.com/tdg5/reqless-core) repo.
@@ -29,13 +29,13 @@ otherwise, that worker should just drop it and let the system reclaim it.
 Features
 ========
 
-1. __Jobs don't get dropped on the floor__ -- Sometimes workers drop jobs. Qless
+1. __Jobs don't get dropped on the floor__ -- Sometimes workers drop jobs. Reqless
   automatically picks them back up and gives them to another worker
 1. __Tagging / Tracking__ -- Some jobs are more interesting than others. Track those
   jobs to get updates on their progress. Tag jobs with meaningful identifiers to
   find them quickly in the UI.
 1. __Job Dependencies__ -- One job might need to wait for another job to complete
-1. __Stats__ -- `qless` automatically keeps statistics about how long jobs wait
+1. __Stats__ -- `reqless` automatically keeps statistics about how long jobs wait
   to be processed and how long they take to be processed. Currently, we keep
   track of the count, mean, standard deviation, and a histogram of these times.
 1. __Job data is stored temporarily__ -- Job info sticks around for a configurable
@@ -57,16 +57,16 @@ Features
 
 Enqueing Jobs
 =============
-First things first, require `qless` and create a client. The client accepts all the
+First things first, require `reqless` and create a client. The client accepts all the
 same arguments that you'd use when constructing a redis client.
 
 ``` ruby
-require 'qless'
+require 'reqless'
 
 # Connect to localhost
-client = Qless::Client.new
+client = Reqless::Client.new
 # Connect to somewhere else
-client = Qless::Client.new(:host => 'foo.bar.com', :port => 1234)
+client = Reqless::Client.new(:host => 'foo.bar.com', :port => 1234)
 ```
 
 Jobs should be classes or modules that define a `perform` method, which
@@ -75,7 +75,7 @@ must accept a single `job` argument:
 ``` ruby
 class MyJobClass
   def self.perform(job)
-    # job is an instance of `Qless::Job` and provides access to
+    # job is an instance of `Reqless::Job` and provides access to
     # job.data, a means to cancel the job (job.cancel), and more.
   end
 end
@@ -91,7 +91,7 @@ queue.put(MyJobClass, :hello => 'howdy')
 # => "0c53b0404c56012f69fa482a1427ab7d"
 # Now we can ask for a job
 job = queue.pop
-# => <Qless::Job 0c53b0404c56012f69fa482a1427ab7d (MyJobClass / testing)>
+# => <Reqless::Job 0c53b0404c56012f69fa482a1427ab7d (MyJobClass / testing)>
 # And we can do the work associated with it!
 job.perform
 ```
@@ -99,7 +99,7 @@ job.perform
 The job data must be serializable to JSON, and it is recommended
 that you use a hash for it. See below for a list of the supported job options.
 
-The argument returned by `queue.put` is the job ID, or jid. Every Qless
+The argument returned by `queue.put` is the job ID, or jid. Every Reqless
 job has a unique jid, and it provides a means to interact with an
 existing job:
 
@@ -129,8 +129,8 @@ job.untag("foo") # remove a tag
 Running A Worker
 ================
 
-The Qless ruby worker was heavily inspired by Resque's worker,
-but thanks to the power of the qless-core lua scripts, it is
+The Reqless ruby worker was heavily inspired by Resque's worker,
+but thanks to the power of the reqless-core lua scripts, it is
 *much* simpler and you are welcome to write your own (e.g. if
 you'd rather save memory by not forking the worker for each job).
 
@@ -138,7 +138,7 @@ As with resque...
 
 * The worker forks a child process for each job in order to provide
    resilience against memory leaks. Pass the `RUN_AS_SINGLE_PROCESS`
-   environment variable to force Qless to not fork the child process.
+   environment variable to force Reqless to not fork the child process.
    Single process mode should only be used in some test/dev
    environments.
 * The worker updates its procline with its status so you can see
@@ -148,13 +148,13 @@ As with resque...
 * The worker is given a list of queues to pop jobs off of.
 * The worker logs out put based on `VERBOSE` or `VVERBOSE` (very
   verbose) environment variables.
-* Qless ships with a rake task (`qless:work`) for running workers.
-  It runs `qless:setup` before starting the main work loop so that
+* Reqless ships with a rake task (`reqless:work`) for running workers.
+  It runs `reqless:setup` before starting the main work loop so that
   users can load their environment in that task.
 * The sleep interval (for when there is no jobs available) can be
   configured with the `INTERVAL` environment variable.
 
-Resque uses queues for its notion of priority. In contrast, qless
+Resque uses queues for its notion of priority. In contrast, reqless
 has priority support built-in. Thus, the worker supports two strategies
 for what order to pop jobs off the queues: ordered and round-robin.
 The ordered reserver will keep popping jobs off the first queue until
@@ -167,19 +167,19 @@ worker and runs it. You could write a rake task to do this, for
 example:
 
 ``` ruby
-namespace :qless do
-  desc "Run a Qless worker"
+namespace :reqless do
+  desc "Run a Reqless worker"
   task :work do
     # Load your application code. All job classes must be loaded.
     require 'my_app/environment'
 
-    # Require the parts of qless you need
-    require 'qless'
-    require 'qless/job_reservers/ordered'
-    require 'qless/worker'
+    # Require the parts of reqless you need
+    require 'reqless'
+    require 'reqless/job_reservers/ordered'
+    require 'reqless/worker'
 
     # Create a client
-    client = Qless::Client.new(:host => 'foo.bar.com', :port => 1234)
+    client = Reqless::Client.new(:host => 'foo.bar.com', :port => 1234)
 
     # Get the queues you use
     queues = %w[ queue_1 queue_2 ].map do |name|
@@ -188,10 +188,10 @@ namespace :qless do
 
     # Create a job reserver; different reservers use different
     # strategies for which order jobs are popped off of queues
-    reserver = Qless::JobReservers::Ordered.new(queues)
+    reserver = Reqless::JobReservers::Ordered.new(queues)
 
     # Create a forking worker that uses the given reserver to pop jobs.
-    worker = Qless::Workers::ForkingWorker.new(reserver)
+    worker = Reqless::Workers::ForkingWorker.new(reserver)
 
     # Start the worker!
     worker.run
@@ -234,8 +234,8 @@ Then, mix-it into the worker class. You can mix-in as many
 middleware modules as you like:
 
 ``` ruby
-require 'qless/worker'
-Qless::Worker.class_eval do
+require 'reqless/worker'
+Reqless::Worker.class_eval do
   include ReEstablishDBConnection
   include SomeOtherAwesomeMiddleware
 end
@@ -244,7 +244,7 @@ end
 Per-Job Middlewares
 ===================
 
-Qless also supports middleware on a per-job basis, when you have some
+Reqless also supports middleware on a per-job basis, when you have some
 orthogonal logic to run in the context of some (but not all) jobs.
 
 Per-job middlewares are defined the same as worker middlewares:
@@ -260,12 +260,12 @@ end
 
 To add them to a job class, you first have to make your job class
 middleware-enabled by extending it with
-`Qless::Job::SupportsMiddleware`, then extend your middleware
+`Reqless::Job::SupportsMiddleware`, then extend your middleware
 modules:
 
 ``` ruby
 class MyJobClass
-  extend Qless::Job::SupportsMiddleware
+  extend Reqless::Job::SupportsMiddleware
   extend ReEstablishDBConnection
   extend MyOtherAwesomeMiddleware
 
@@ -274,25 +274,25 @@ class MyJobClass
 end
 ```
 
-Note that `Qless::Job::SupportsMiddleware` must be extended onto your
+Note that `Reqless::Job::SupportsMiddleware` must be extended onto your
 job class _before_ any other middleware modules.
 
 Web Interface
 =============
 
-Qless ships with a resque-inspired web app that lets you easily
+Reqless ships with a resque-inspired web app that lets you easily
 deal with failures and see what it is processing. If you're project
-has a rack-based ruby web app, we recommend you mount Qless's web app
+has a rack-based ruby web app, we recommend you mount Reqless's web app
 in it. Here's how you can do that with `Rack::Builder` in your `config.ru`:
 
 ``` ruby
-client = Qless::Client.new(:host => "some-host", :port => 7000)
+client = Reqless::Client.new(:host => "some-host", :port => 7000)
 
 Rack::Builder.new do
   use SomeMiddleware
 
   map('/some-other-app') { run Apps::Something.new }
-  map('/qless')          { run Qless::Server.new(client) }
+  map('/reqless')        { run Reqless::Server.new(client) }
 end
 ```
 
@@ -366,7 +366,7 @@ You can even access them in much the same way as you would normal jobs:
 
 ``` ruby
 job = client.jobs['22ac75008a8011e182b24cf9ab3a8f3b']
-# => < Qless::RecurringJob 22ac75008a8011e182b24cf9ab3a8f3b >
+# => < Reqless::RecurringJob 22ac75008a8011e182b24cf9ab3a8f3b >
 ```
 
 Changing the interval at which it runs after the fact is trivial:
@@ -414,7 +414,7 @@ client.config['jobs-history-count'] = 500
 
 Tagging / Tracking
 ==================
-In qless, 'tracking' means flagging a job as important. Tracked jobs have a tab reserved
+In reqless, 'tracking' means flagging a job as important. Tracked jobs have a tab reserved
 for them in the web interface, and they also emit subscribable events as they make progress
 (more on that below). You can flag a job from the web interface, or the corresponding code:
 
@@ -448,7 +448,7 @@ Notifications
 =============
 Tracked jobs emit events on specific pubsub channels as things happen to them. Whether
 it's getting popped off of a queue, completed by a worker, etc. A good example of how
-to make use of this is in the `qless-campfire` or `qless-growl`. The jist of it goes like
+to make use of this is in the `reqless-campfire` or `reqless-growl`. The jist of it goes like
 this, though:
 
 ``` ruby
@@ -507,8 +507,8 @@ client.queues['testing'].heartbeat = 300
 ```
 
 When choosing a heartbeat interval, realize that this is the amount of time that
-can pass before qless realizes if a job has been dropped. At the same time, you don't
-want to burden qless with heartbeating every 10 seconds if your job is expected to
+can pass before reqless realizes if a job has been dropped. At the same time, you don't
+want to burden reqless with heartbeating every 10 seconds if your job is expected to
 take several hours.
 
 An idiom you're encouraged to use for long-running jobs that want to check in their
@@ -524,7 +524,7 @@ end
 
 Stats
 =====
-One nice feature of `qless` is that you can get statistics about usage. Stats are
+One nice feature of `reqless` is that you can get statistics about usage. Stats are
 aggregated by day, so when you want stats about a queue, you need to say what queue
 and what day you're talking about. By default, you just get the stats for today.
 These stats include information about the mean job wait time, standard deviation,
@@ -551,7 +551,7 @@ Ensuring Job Uniqueness
 =======================
 
 As mentioned above, Jobs are uniquely identied by an id--their jid.
-Qless will generate a UUID for each enqueued job or you can specify
+Reqless will generate a UUID for each enqueued job or you can specify
 one manually:
 
 ``` ruby
@@ -560,13 +560,13 @@ queue.put(MyJobClass, { :hello => 'howdy' }, :jid => 'my-job-jid')
 
 This can be useful when you want to ensure a job's uniqueness: simply
 create a jid that is a function of the Job's class and data, it'll
-guaranteed that Qless won't have multiple jobs with the same class
+guaranteed that Reqless won't have multiple jobs with the same class
 and data.
 
 Setting Default Job Options
 ===========================
 
-`Qless::Queue#put` accepts a number of job options (see above for their
+`Reqless::Queue#put` accepts a number of job options (see above for their
 semantics):
 
 * jid
@@ -598,13 +598,13 @@ Testing Jobs
 When unit testing your jobs, you will probably want to avoid the
 overhead of round-tripping them through redis. You can of course
 use a mock job object and pass it to your job class's `perform`
-method. Alternately, if you want a real full-fledged `Qless::Job`
-instance without round-tripping it through Redis, use `Qless::Job.build`:
+method. Alternately, if you want a real full-fledged `Reqless::Job`
+instance without round-tripping it through Redis, use `Reqless::Job.build`:
 
 ``` ruby
 describe MyJobClass do
-  let(:client) { Qless::Client.new }
-  let(:job)    { Qless::Job.build(client, MyJobClass, :data => { "some" => "data" }) }
+  let(:client) { Reqless::Client.new }
+  let(:job)    { Reqless::Job.build(client, MyJobClass, :data => { "some" => "data" }) }
 
   it 'does something' do
     MyJobClass.perform(job)
@@ -613,15 +613,15 @@ describe MyJobClass do
 end
 ```
 
-The options hash passed to `Qless::Job.build` supports all the same
+The options hash passed to `Reqless::Job.build` supports all the same
 options a normal job supports. See
-[the source](https://github.com/seomoz/qless/blob/master/lib/qless/job.rb)
+[the source](https://github.com/tdg5/reqless-rb/blob/main/lib/reqless/job.rb)
 for a full list.
 
 Contributing
 ============
 
-To bootstrap an environment, first [have a redis](https://github.com/seomoz/qless/wiki/Bootstrapping-Qless#a-simple-redis-bootstrap).
+To bootstrap an environment, first setup a redis instance.
 
 Have `rvm` or `rbenv`.  Then to install the dependencies:
 
@@ -643,13 +643,6 @@ bundle exec rake spec
 
 **The locally installed redis will be flushed before and after each test run.**
 
-To change the redis instance used in tests, put the connection information into [`./spec/redis.config.yml`](https://github.com/seomoz/qless/blob/92904532aee82aaf1078957ccadfa6fcd27ae408/spec/spec_helper.rb#L26).
+To change the redis instance used in tests, put the connection information into [`./spec/redis.config.yml`](https://github.com/tdg5/reqless-rb/blob/92904532aee82aaf1078957ccadfa6fcd27ae408/spec/spec_helper.rb#L26).
 
 To contribute, fork the repo, use feature branches, run the tests and open PRs.
-
-Mailing List
-============
-
-For questions and general Qless discussion, please join the [Qless
-Mailing list](https://groups.google.com/forum/?fromgroups#!forum/qless).
-

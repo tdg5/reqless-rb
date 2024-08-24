@@ -1,25 +1,23 @@
 # Encoding: utf-8
 
-# The things we're testing
-require 'qless'
-require 'qless/worker/serial'
-require 'qless/job_reservers/round_robin'
-require 'qless/middleware/retry_exceptions'
+require 'reqless'
+require 'reqless/worker/serial'
+require 'reqless/job_reservers/round_robin'
+require 'reqless/middleware/retry_exceptions'
 
-# Spec stuff
 require 'spec_helper'
-require 'qless/test_helpers/worker_helpers'
+require 'reqless/test_helpers/worker_helpers'
 
-module Qless
+module Reqless
   describe Workers::SerialWorker, :integration do
-    include Qless::WorkerHelpers
+    include Reqless::WorkerHelpers
 
     let(:key) { :worker_integration_job }
     let(:queue) { client.queues['main'] }
     let(:output) { StringIO.new }
     let(:worker) do
-      Qless::Workers::SerialWorker.new(
-        Qless::JobReservers::RoundRobin.new([queue]),
+      Reqless::Workers::SerialWorker.new(
+        Reqless::JobReservers::RoundRobin.new([queue]),
         interval: 1,
         max_startup_interval: 0,
         output: output,
@@ -198,12 +196,12 @@ module Qless
     end
 
     # Specs related specifically to middleware
-    describe Qless::Middleware do
+    describe Reqless::Middleware do
       it 'will retry and eventually fail a repeatedly failing job' do
         # A job that raises an error, but automatically retries that error type
         class RetryExceptionsJobClass
-          extend Qless::Job::SupportsMiddleware
-          extend Qless::Middleware::RetryExceptions
+          extend Reqless::Job::SupportsMiddleware
+          extend Reqless::Middleware::RetryExceptions
 
           Kaboom = Class.new(StandardError)
           retry_on Kaboom

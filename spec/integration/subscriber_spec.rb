@@ -1,13 +1,11 @@
 # Encoding: utf-8
 
-# The things we're testing
-require 'qless'
-require 'qless/subscriber'
+require 'reqless'
+require 'reqless/subscriber'
 
-# Spec stuff
 require 'spec_helper'
 
-module Qless
+module Reqless
   describe Subscriber, :integration, :uses_threads do
     let(:channel) { SecureRandom.uuid } # use a unique channel
     let(:logger) { StringIO.new }

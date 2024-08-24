@@ -2,9 +2,9 @@
 
 require 'spec_helper'
 require 'yaml'
-require 'qless/queue'
+require 'reqless/queue'
 
-module Qless
+module Reqless
   describe Throttle, :integration do
     it "stores the correct the name and client at initialization" do
       t = Throttle.new('name', client)

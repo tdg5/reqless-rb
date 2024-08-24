@@ -1,12 +1,10 @@
 # Encoding: utf-8
 
-# The things we're testing
-require 'qless'
+require 'reqless'
 
-# Spec stuff
 require 'spec_helper'
 
-module Qless
+module Reqless
   describe Queue, :integration do
     let(:queue) { client.queues['foo'] }
 

@@ -5,7 +5,7 @@ require 'simplecov'
 SimpleCov.start do
   add_filter '/spec'
   add_filter '/bundle'
-  add_filter '/lib/qless/test_helpers/worker_helpers'
+  add_filter '/lib/reqless/test_helpers/worker_helpers'
 end
 
 SimpleCov.at_exit do

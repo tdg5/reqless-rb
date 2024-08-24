@@ -4,7 +4,7 @@ Bundler::GemHelper.install_tasks
 
 require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new(:spec) do |t|
-  t.rspec_opts = %w[--profile --format progress]
+  t.rspec_opts = %w[--profile]
   t.ruby_opts  = "-Ispec -rsimplecov_setup"
 end
 
@@ -19,10 +19,10 @@ task :check_coverage do
   end
 end
 
-task default: [:spec, :check_coverage, :cane]
+task default: [:spec, :check_coverage]
 
 namespace :core do
-  reqless_core_dir = "./lib/qless/reqless-core"
+  reqless_core_dir = "./lib/reqless/reqless-core"
 
   desc "Builds the reqless-core lua scripts"
   task :build do
@@ -44,7 +44,7 @@ namespace :core do
   task update: [:update_submodule, :build]
 
   namespace :verify do
-    script_files = %w[ lib/qless/lua/reqless.lua lib/qless/lua/reqless-lib.lua ]
+    script_files = %w[ lib/reqless/lua/reqless.lua lib/reqless/lua/reqless-lib.lua ]
 
     desc "Verifies the script has no uncommitted changes"
     task :clean do
@@ -80,22 +80,20 @@ namespace :core do
   task verify: %w[ verify:clean verify:current ]
 end
 
-desc "Starts a qless console"
+desc "Starts a reqless console"
 task :console do
   ENV['PUBLIC_SEQUEL_API'] = 'true'
   ENV['NO_NEW_RELIC'] = 'true'
   exec "bundle exec pry -r./conf/console"
 end
 
-require 'qless/tasks'
-
-namespace :qless do
+namespace :reqless do
   desc "Runs a test worker so you can send signals to it for testing"
   task :run_test_worker do
-    require 'qless'
-    require 'qless/job_reservers/ordered'
-    require 'qless/worker'
-    queue = Qless::Client.new.queues["example"]
+    require 'reqless'
+    require 'reqless/job_reservers/ordered'
+    require 'reqless/worker'
+    queue = Reqless::Client.new.queues["example"]
     queue.client.redis.flushdb
 
     ENV['VVERBOSE'] = '1'
@@ -113,54 +111,7 @@ namespace :qless do
       queue.put(ExampleJob, sleep: i)
     end
 
-    reserver = Qless::JobReservers::Ordered.new([queue])
-    Qless::Workers::ForkingWorker.new(reserver, log_level: Logger::INFO).run
+    reserver = Reqless::JobReservers::Ordered.new([queue])
+    Reqless::Workers::ForkingWorker.new(reserver, log_level: Logger::INFO).run
   end
 end
-
-
-namespace :cane do
-  begin
-    require 'cane/rake_task'
-
-    libs = [
-      { name: 'qless', dir: '.', root: '.' },
-    ]
-
-    libs.each do |lib|
-      desc "Runs cane code quality checks for #{lib[:name]}"
-      Cane::RakeTask.new(lib[:name]) do |cane|
-        cane.no_doc   = true
-
-        cane.abc_glob = "#{lib[:dir]}/{lib,spec}/**/*.rb"
-        cane.abc_max = 15
-        cane.abc_exclude = %w[
-          Middleware::(anon)#expect_job_to_timeout
-          Qless::Job#initialize
-          Qless::Middleware::RequeueExceptions#handle_exception
-          Qless::Middleware::Timeout#initialize
-          Qless::WorkerHelpers#run_jobs
-          Qless::Workers::BaseWorker#initialize
-          Qless::Workers::BaseWorker#register_signal_handlers
-          Qless::Workers::ForkingWorker#register_signal_handlers
-          Qless::Workers::SerialWorker#run
-        ]
-
-        cane.style_glob = "#{lib[:dir]}/lib/**/*.rb"
-        cane.style_measure = 100
-        cane.style_exclude = %w[
-        ]
-      end
-    end
-
-    desc "Runs cane code quality checks for all projects"
-    task all: libs.map { |l| l[:name] }
-
-  rescue LoadError
-    task :all do
-      puts "cane is not supported in ruby #{RUBY_VERSION}"
-    end
-  end
-end
-
-task cane: "cane:all"

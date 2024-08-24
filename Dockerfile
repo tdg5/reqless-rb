@@ -6,8 +6,8 @@ WORKDIR /app
 
 ENV OPENSSL_CONF=/etc/ssl/
 
-COPY Gemfile qless.gemspec .
-COPY lib/qless/version.rb lib/qless/version.rb
+COPY Gemfile reqless.gemspec .
+COPY lib/reqless/version.rb lib/reqless/version.rb
 
 RUN NOKOGIRI_USE_SYSTEM_LIBRARIES=1 bundle install
 

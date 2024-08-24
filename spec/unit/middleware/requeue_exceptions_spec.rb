@@ -1,9 +1,9 @@
 # Encoding: utf-8
 
 require 'spec_helper'
-require 'qless/middleware/requeue_exceptions'
+require 'reqless/middleware/requeue_exceptions'
 
-module Qless
+module Reqless
   module Middleware
     describe RequeueExceptions do
       let(:container_class) do
@@ -95,7 +95,7 @@ module Qless
 
         let(:job) do
           instance_double(
-            'Qless::Job', requeue: nil, queue_name: 'my-queue', data: {})
+            'Reqless::Job', requeue: nil, queue_name: 'my-queue', data: {})
         end
         let(:delay_range) { (0..30) }
         let(:max_attempts) { 20 }

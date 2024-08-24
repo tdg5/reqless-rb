@@ -1,12 +1,10 @@
 # Encoding: utf-8
 
-# The things we're testing
-require 'qless'
+require 'reqless'
 
-# Spec stuff
 require 'spec_helper'
 
-module Qless
+module Reqless
   describe LuaScript, :integration do
     let(:redis) { client.redis }
     let(:script) { LuaScript.new('reqless', redis) }

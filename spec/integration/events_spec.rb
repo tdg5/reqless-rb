@@ -1,9 +1,9 @@
 # Encoding: utf-8
 
-require 'qless'
+require 'reqless'
 require 'spec_helper'
 
-module Qless
+module Reqless
   describe ClientEvents, :integration, :uses_threads do
     let!(:queue) { client.queues['foo'] }
     let!(:events) { Hash.new { |h, k| h[k] = [] } }
@@ -11,10 +11,10 @@ module Qless
 
     # Tracked and untracked jobs
     let!(:untracked) do
-      client.jobs[queue.put(Qless::Job, { foo: 'bar' })]
+      client.jobs[queue.put(Reqless::Job, { foo: 'bar' })]
     end
     let!(:tracked) do
-      client.jobs[queue.put(Qless::Job, { foo: 'bar' })].tap do |job|
+      client.jobs[queue.put(Reqless::Job, { foo: 'bar' })].tap do |job|
         job.track
       end
     end

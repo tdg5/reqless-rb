@@ -1,26 +1,26 @@
 # Encoding: utf-8
 
 require 'spec_helper'
-require 'qless/queue'
-require 'qless/job_reservers/shuffled_round_robin'
+require 'reqless/queue'
+require 'reqless/job_reservers/shuffled_round_robin'
 
-module Qless
+module Reqless
   module JobReservers
     describe ShuffledRoundRobin do
       let(:q1) do
-        q = instance_double('Qless::Queue')
+        q = instance_double('Reqless::Queue')
         allow(q).to receive(:name).and_return('Queue1')
         q
       end
 
       let(:q2) do
-        q = instance_double('Qless::Queue')
+        q = instance_double('Reqless::Queue')
         allow(q).to receive(:name).and_return('Queue2')
         q
       end
 
       let(:q3) do
-        q = instance_double('Qless::Queue')
+        q = instance_double('Reqless::Queue')
         allow(q).to receive(:name).and_return('Queue3')
         q
       end

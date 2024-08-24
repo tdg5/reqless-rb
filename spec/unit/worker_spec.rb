@@ -1,16 +1,13 @@
 # Encoding: utf-8
 
-# The thing we're testing
-require 'qless/worker'
+require 'reqless/worker'
 
-# Standard
 require 'logger'
 
-# Spec
 require 'spec_helper'
 
 
-module Qless
+module Reqless
   describe Workers do
     shared_context 'with a dummy client' do
       # Our client should ignore everything
@@ -18,7 +15,7 @@ module Qless
 
       # Our doubled reserver doesn't do much
       let(:reserver) do
-        instance_double('Qless::JobReservers::Ordered',
+        instance_double('Reqless::JobReservers::Ordered',
                         description: 'job reserver',
                         queues: [],
                         prep_for_work!: nil)
@@ -37,14 +34,14 @@ module Qless
     end
 
     shared_examples_for 'a worker' do
-      before { clear_qless_memoization }
+      before { clear_reqless_memoization }
       let(:worker) do
         worker_class.new(
           reserver,
           output: log_output,
           log_level: Logger::DEBUG)
       end
-      after(:all) { clear_qless_memoization }
+      after(:all) { clear_reqless_memoization }
 
       it 'performs the job' do
         expect(JobClass).to receive(:perform)
@@ -56,7 +53,7 @@ module Qless
         expected_line_number = __LINE__ - 1
         expect(job).to respond_to(:fail).with(2).arguments
         expect(job).to receive(:fail) do |group, message|
-          expect(group).to eq('Qless::JobClass:Exception')
+          expect(group).to eq('Reqless::JobClass:Exception')
           expect(message).to include('boom')
           expect(message).to include("#{__file__}:#{expected_line_number}")
         end
@@ -118,7 +115,7 @@ module Qless
       end
 
       it 'fails the job if the job class is invalid or not found' do
-        hide_const('Qless::MyJobClass')
+        hide_const('Reqless::MyJobClass')
         expect(job).to receive(:fail)
         expect { worker.perform(job) }.not_to raise_error
       end

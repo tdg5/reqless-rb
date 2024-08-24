@@ -1,9 +1,9 @@
 # Encoding: utf-8
 
 require 'spec_helper'
-require 'qless/job'
+require 'reqless/job'
 
-module Qless
+module Reqless
   describe Job do
     class JobClass
       class Nested
@@ -87,9 +87,9 @@ module Qless
         job.perform
       end
 
-      context 'when the job class is a Qless::Job::SupportsMiddleware' do
+      context 'when the job class is a Reqless::Job::SupportsMiddleware' do
         it 'calls #around_perform on the job to run the middleware chain' do
-          klass = Class.new { extend Qless::Job::SupportsMiddleware }
+          klass = Class.new { extend Reqless::Job::SupportsMiddleware }
           stub_const('MyJobClass', klass)
 
           job = Job.build(client, klass)
@@ -99,16 +99,16 @@ module Qless
       end
 
       context('when the job mixes in middleware but forgot' +
-        'Qless::Job::SupportsMiddleware') do
+        'Reqless::Job::SupportsMiddleware') do
         it('raises an error to alert the user to the fact they need' +
-          'Qless::Job::SupportsMiddleware') do
+          'Reqless::Job::SupportsMiddleware') do
           klass = Class.new { extend SomeJobMiddleware }
           stub_const('MyJobClass', klass)
           job = Job.build(client, klass)
 
           expect do
             job.perform
-          end.to raise_error(Qless::Job::MiddlewareMisconfiguredError)
+          end.to raise_error(Reqless::Job::MiddlewareMisconfiguredError)
         end
       end
     end
@@ -116,12 +116,12 @@ module Qless
     describe '#middlewares_on' do
       it 'returns the list of middleware mixed into the job' do
         klass = Class.new do
-          extend Qless::Job::SupportsMiddleware
+          extend Reqless::Job::SupportsMiddleware
           extend SomeJobMiddleware
         end
 
-        expect(Qless::Job.middlewares_on(klass)).to eq([
-          SomeJobMiddleware, Qless::Job::SupportsMiddleware
+        expect(Reqless::Job.middlewares_on(klass)).to eq([
+          SomeJobMiddleware, Reqless::Job::SupportsMiddleware
         ])
       end
     end
@@ -133,7 +133,7 @@ module Qless
           raise LuaScriptError.new('failed')
         end
 
-        job = Job.build(client, Qless::Job)
+        job = Job.build(client, Reqless::Job)
 
         expect do
           job.public_send(method, *args)
@@ -146,7 +146,7 @@ module Qless
           raise NoMethodError
         end
 
-        job = Job.build(client, Qless::Job)
+        job = Job.build(client, Reqless::Job)
 
         expect do
           job.public_send(method, *args)
@@ -221,7 +221,7 @@ module Qless
         job = Job.build(client, JobClass, 'spawned_from_jid' => 'foo')
 
         expect(job.to_hash).to include(
-          klass_name: "Qless::JobClass",
+          klass_name: "Reqless::JobClass",
           state: "running",
           spawned_from_jid: "foo"
         )
@@ -231,7 +231,7 @@ module Qless
         job = Job.build(client, JobClass, 'throttles' => ['my-throttle'])
 
         expect(job.to_hash).to include(
-          klass_name: "Qless::JobClass",
+          klass_name: "Reqless::JobClass",
           state: "running",
           throttles: ['my-throttle']
         )
@@ -267,7 +267,7 @@ module Qless
       end
 
       let(:job) do
-        Qless::Job.build(client, JobClass, history: [history_event])
+        Reqless::Job.build(client, JobClass, history: [history_event])
       end
 
       it 'returns the raw history from `raw_queue_history`' do
@@ -298,7 +298,7 @@ module Qless
       let(:queue_2) { { 'what' => 'put', 'when' => time_2 } }
 
       def build_job(*events)
-        Qless::Job.build(client, JobClass, history: events)
+        Reqless::Job.build(client, JobClass, history: events)
       end
 
       it 'returns the earliest `put` timestamp' do
@@ -313,9 +313,9 @@ module Qless
     end
 
     describe "equality" do
-      it 'is considered equal when the qless client and jid are equal' do
-        job1 = Qless::Job.build(client, JobClass, jid: "foo")
-        job2 = Qless::Job.build(client, JobClass, jid: "foo")
+      it 'is considered equal when the reqless client and jid are equal' do
+        job1 = Reqless::Job.build(client, JobClass, jid: "foo")
+        job2 = Reqless::Job.build(client, JobClass, jid: "foo")
 
         expect(job1 == job2).to eq(true)
         expect(job2 == job1).to eq(true)
@@ -326,8 +326,8 @@ module Qless
       end
 
       it 'is not considered equal when the jid differs' do
-        job1 = Qless::Job.build(client, JobClass, jid: "foo")
-        job2 = Qless::Job.build(client, JobClass, jid: "food")
+        job1 = Reqless::Job.build(client, JobClass, jid: "foo")
+        job2 = Reqless::Job.build(client, JobClass, jid: "food")
 
         expect(job1 == job2).to eq(false)
         expect(job2 == job1).to eq(false)
@@ -338,8 +338,8 @@ module Qless
       end
 
       it 'is not considered equal when the client differs' do
-        job1 = Qless::Job.build(client, JobClass, jid: "foo")
-        job2 = Qless::Job.build(double, JobClass, jid: "foo")
+        job1 = Reqless::Job.build(client, JobClass, jid: "foo")
+        job2 = Reqless::Job.build(double, JobClass, jid: "foo")
 
         expect(job1 == job2).to eq(false)
         expect(job2 == job1).to eq(false)
@@ -350,8 +350,8 @@ module Qless
       end
 
       it 'is not considered equal to other types of objects' do
-        job1 = Qless::Job.build(client, JobClass, jid: "foo")
-        job2 = Class.new(Qless::Job).build(client, JobClass, jid: "foo")
+        job1 = Reqless::Job.build(client, JobClass, jid: "foo")
+        job2 = Class.new(Reqless::Job).build(client, JobClass, jid: "foo")
 
         expect(job1 == job2).to eq(false)
         expect(job1.eql? job2).to eq(false)

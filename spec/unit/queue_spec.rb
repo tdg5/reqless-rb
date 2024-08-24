@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 require 'yaml'
-require 'qless/queue'
+require 'reqless/queue'
 
 # A job class where to_s has been changed
 class SomeJobClassWithDifferentToS
@@ -11,7 +11,7 @@ class SomeJobClassWithDifferentToS
   end
 end
 
-module Qless
+module Reqless
   class DefaultOptionsJobClass
     def self.default_job_options(data)
       { jid: "jid-#{data[:arg]}", priority: 100 }
@@ -40,9 +40,9 @@ module Qless
 
     it 'can specify a jid in put and recur' do
       expect(client.queues['foo'].put(
-        Qless::Job, { 'foo' => 'bar' },    jid: 'howdy')).to eq('howdy')
+        Reqless::Job, { 'foo' => 'bar' },    jid: 'howdy')).to eq('howdy')
       expect(client.queues['foo'].recur(
-        Qless::Job, { 'foo' => 'bar' }, 5, jid: 'hello')).to eq('hello')
+        Reqless::Job, { 'foo' => 'bar' }, 5, jid: 'hello')).to eq('hello')
       expect(client.jobs['howdy']).to be
       expect(client.jobs['hello']).to be
     end
@@ -96,8 +96,8 @@ module Qless
     describe "#throttle" do
       let(:q) { Queue.new('a_queue', client) }
 
-      it "returns a Qless::Throttle" do
-        expect(q.throttle).to be_a(Qless::Throttle)
+      it "returns a Reqless::Throttle" do
+        expect(q.throttle).to be_a(Reqless::Throttle)
       end
 
       it "mirrors updates correctly" do
@@ -114,9 +114,9 @@ module Qless
     end
 
     describe "equality" do
-      it 'is considered equal when the qless client and name are equal' do
-        q1 = Qless::Queue.new('foo', client)
-        q2 = Qless::Queue.new('foo', client)
+      it 'is considered equal when the reqless client and name are equal' do
+        q1 = Reqless::Queue.new('foo', client)
+        q2 = Reqless::Queue.new('foo', client)
 
         expect(q1 == q2).to eq(true)
         expect(q2 == q1).to eq(true)
@@ -126,9 +126,9 @@ module Qless
         expect(q1.hash).to eq(q2.hash)
       end
 
-      it 'is considered equal when the qless client is the same and the names only differ in symbol vs string' do
-        q1 = Qless::Queue.new('foo', client)
-        q2 = Qless::Queue.new(:foo, client)
+      it 'is considered equal when the reqless client is the same and the names only differ in symbol vs string' do
+        q1 = Reqless::Queue.new('foo', client)
+        q2 = Reqless::Queue.new(:foo, client)
 
         expect(q1 == q2).to eq(true)
         expect(q2 == q1).to eq(true)
@@ -139,8 +139,8 @@ module Qless
       end
 
       it 'is not considered equal when the name differs' do
-        q1 = Qless::Queue.new('foo', client)
-        q2 = Qless::Queue.new('food', client)
+        q1 = Reqless::Queue.new('foo', client)
+        q2 = Reqless::Queue.new('food', client)
 
         expect(q1 == q2).to eq(false)
         expect(q2 == q1).to eq(false)
@@ -151,8 +151,8 @@ module Qless
       end
 
       it 'is not considered equal when the client differs' do
-        q1 = Qless::Queue.new('foo', client)
-        q2 = Qless::Queue.new('foo', double)
+        q1 = Reqless::Queue.new('foo', client)
+        q2 = Reqless::Queue.new('foo', double)
 
         expect(q1 == q2).to eq(false)
         expect(q2 == q1).to eq(false)
@@ -163,8 +163,8 @@ module Qless
       end
 
       it 'is not considered equal to other types of objects' do
-        q1 = Qless::Queue.new('foo', client)
-        q2 = Class.new(Qless::Queue).new('foo', client)
+        q1 = Reqless::Queue.new('foo', client)
+        q2 = Class.new(Reqless::Queue).new('foo', client)
 
         expect(q1 == q2).to eq(false)
         expect(q1.eql? q2).to eq(false)

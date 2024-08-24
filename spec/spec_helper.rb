@@ -11,7 +11,7 @@ end
 
 require 'capybara/rspec'
 
-module QlessSpecHelpers
+module ReqlessSpecHelpers
   def with_env_vars(vars)
     original = ENV.to_hash
     vars.each { |k, v| ENV[k] = v }
@@ -23,8 +23,8 @@ module QlessSpecHelpers
     end
   end
 
-  def clear_qless_memoization
-    Qless.instance_eval do
+  def clear_reqless_memoization
+    Reqless.instance_eval do
       instance_variables.each do |ivar|
         remove_instance_variable(ivar)
       end
@@ -56,7 +56,7 @@ module RedisHelpers
   end
 
   def new_client
-    Qless::Client.new(redis_config)
+    Reqless::Client.new(redis_config)
   end
 
   def new_redis
@@ -72,7 +72,7 @@ end
 RSpec.configure do |c|
   c.filter_run :f
   c.run_all_when_everything_filtered = true
-  c.include QlessSpecHelpers
+  c.include ReqlessSpecHelpers
   c.include Capybara::DSL
 end
 
@@ -81,7 +81,7 @@ shared_context 'redis integration', :integration do
   using_integration_context = true
   include RedisHelpers
 
-  # A qless client subject to the redis configuration
+  # A reqless client subject to the redis configuration
   let(:client) { new_client }
   # A plain redis client with the same redis configuration
   let(:redis)  { new_redis }

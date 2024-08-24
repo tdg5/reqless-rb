@@ -12,11 +12,11 @@ fi
 
 test -f "$REPO_DIR/Gemfile.lock" && rm -f "$REPO_DIR/Gemfile.lock"
 redis-cli flushdb
-docker build -t qless-rb "$REPO_DIR"
+docker build -t reqless-rb "$REPO_DIR"
 docker run \
   -it \
   --publish 4000:4000 \
   --rm \
   --volume $REPO_DIR:/app \
-  qless-rb \
+  reqless-rb \
   $COMMAND

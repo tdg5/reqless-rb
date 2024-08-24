@@ -1,10 +1,10 @@
 # Encoding: utf-8
 
 require 'spec_helper'
-require 'qless/middleware/retry_exceptions'
-require 'qless'
+require 'reqless/middleware/retry_exceptions'
+require 'reqless'
 
-module Qless
+module Reqless
   module Middleware
     describe RetryExceptions do
       let(:container_class) do
@@ -19,7 +19,7 @@ module Qless
 
       let(:container) { container_class.new }
       let(:job) do
-        instance_double('Qless::Job', retry: nil, original_retries: 5,
+        instance_double('Reqless::Job', retry: nil, original_retries: 5,
                                       retries_left: 5, klass_name: 'JobClass')
       end
       let(:matched_exception) { ZeroDivisionError }

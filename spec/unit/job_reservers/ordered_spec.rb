@@ -1,15 +1,15 @@
 # Encoding: utf-8
 
 require 'spec_helper'
-require 'qless/queue'
-require 'qless/job_reservers/ordered'
+require 'reqless/queue'
+require 'reqless/job_reservers/ordered'
 
-module Qless
+module Reqless
   module JobReservers
     describe Ordered do
-      let(:q1) { instance_double('Qless::Queue') }
-      let(:q2) { instance_double('Qless::Queue') }
-      let(:q3) { instance_double('Qless::Queue') }
+      let(:q1) { instance_double('Reqless::Queue') }
+      let(:q2) { instance_double('Reqless::Queue') }
+      let(:q3) { instance_double('Reqless::Queue') }
       let(:reserver) { Ordered.new([q1, q2, q3]) }
 
       describe '#reserve' do

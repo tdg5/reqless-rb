@@ -1,7 +1,7 @@
-require 'qless'
-require 'qless/server'
+require 'reqless'
+require 'reqless/server'
 
-redis_url = ENV['QLESS_WEB_REDIS_URL']
-client = Qless::Client.new(:url => redis_url)
+redis_url = ENV['REQLESS_WEB_REDIS_URL']
+client = Reqless::Client.new(:url => redis_url)
 use Rack::RewindableInput::Middleware
-run(Qless::Server.new(client))
+run(Reqless::Server.new(client))

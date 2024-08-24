@@ -1,13 +1,11 @@
 # Encoding: utf-8
 
-# The things we're testing
-require 'qless'
+require 'reqless'
 
-# Spec stuff
 require 'spec_helper'
 require 'timecop'
 
-module Qless
+module Reqless
   # This class does not have a perform method
   class NoPerformJob; end
 
@@ -15,7 +13,7 @@ module Qless
     let(:queue) { client.queues['foo'] }
 
     it 'can specify a jid in put and klass as string' do
-      expect(queue.put('Qless::Job', {}, jid: 'a')).to eq('a')
+      expect(queue.put('Reqless::Job', {}, jid: 'a')).to eq('a')
       expect(queue.put(Job, {}, jid: 'b')).to eq('b')
     end
 
@@ -180,7 +178,7 @@ module Qless
     it 'has a reasonable to_s' do
       queue.put('Foo', {}, jid: 'jid')
       expect(client.jobs['jid'].to_s).to eq(
-        '<Qless::Job Foo (jid / foo / waiting)>')
+        '<Reqless::Job Foo (jid / foo / waiting)>')
     end
 
     it 'fails to process if it does not have the method' do
@@ -218,7 +216,7 @@ module Qless
 
       expect do
         job.complete
-      end.to raise_error(Qless::Job::CantCompleteError, /failed/)
+      end.to raise_error(Reqless::Job::CantCompleteError, /failed/)
 
       expect(events).to eq([:before])
     end
@@ -250,7 +248,7 @@ module Qless
     let(:queue) { client.queues['foo'] }
 
     it 'can take either a class or string' do
-      expect(queue.recur('Qless::Job', {}, 5, jid: 'a')).to eq('a')
+      expect(queue.recur('Reqless::Job', {}, 5, jid: 'a')).to eq('a')
       expect(queue.recur(Job, {}, 5, jid: 'b')).to eq('b')
     end
 

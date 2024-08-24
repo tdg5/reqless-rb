@@ -1,8 +1,8 @@
-require 'qless'
+require 'reqless'
 
 require 'spec_helper'
 
-module Qless
+module Reqless
   describe ClientQueuePatterns, :integration do
     describe ClientQueuePatterns do
       describe '#get_queue_identifier_patterns' do

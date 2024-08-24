@@ -1,14 +1,14 @@
 # Encoding: utf-8
 
 require 'spec_helper'
-require 'qless/middleware/sentry'
-require 'qless'
-require 'qless/worker'
+require 'reqless/middleware/sentry'
+require 'reqless'
+require 'reqless/worker'
 
-module Qless
+module Reqless
   module Middleware
     describe Sentry do
-      let(:client) { instance_double('Qless::Client').as_null_object }
+      let(:client) { instance_double('Reqless::Client').as_null_object }
 
       let(:klass) do
         Class.new do
@@ -32,7 +32,7 @@ module Qless
 
       let(:job) do
         stub_const('MyJob', klass)
-        Qless::Job.build(client, MyJob,
+        Reqless::Job.build(client, MyJob,
                          data: { 'some' => 'data' },
                          worker: 'w1', queue: 'q1',
                          jid: 'abc', history: [history_event],
@@ -41,8 +41,8 @@ module Qless
       end
 
       def perform_job
-        worker = Qless::Workers::SerialWorker.new(double)
-        worker.extend Qless::Middleware::Sentry
+        worker = Reqless::Workers::SerialWorker.new(double)
+        worker.extend Reqless::Middleware::Sentry
         worker.perform(job)
       end
 

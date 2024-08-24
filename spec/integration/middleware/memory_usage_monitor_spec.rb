@@ -1,8 +1,8 @@
 require 'spec_helper'
 require 'support/forking_worker_context'
-require 'qless/middleware/memory_usage_monitor'
+require 'reqless/middleware/memory_usage_monitor'
 
-module Qless
+module Reqless
   module Middleware
     describe MemoryUsageMonitor do
       include_context "forking worker"
@@ -81,7 +81,7 @@ module Qless
         let(:bloated_job_class) do
           bloated_job_class = Class.new do
             def self.perform(job)
-              job_record = JobRecord.new(Process.pid, Qless::Middleware::MemoryUsageMonitor.current_usage_in_kb, nil)
+              job_record = JobRecord.new(Process.pid, Reqless::Middleware::MemoryUsageMonitor.current_usage_in_kb, nil)
               job_record.after_mem = bloat_memory(job_record.before_mem, job.data.fetch("target"))
 
               # publish what the memory usage was before/after
@@ -99,7 +99,7 @@ module Qless
                 ).to_sym # symbols are never GC'd.
 
                 print '.'
-                current_mem = Qless::Middleware::MemoryUsageMonitor.current_usage_in_kb
+                current_mem = Reqless::Middleware::MemoryUsageMonitor.current_usage_in_kb
               end
 
               current_mem
@@ -123,7 +123,7 @@ module Qless
       context "when the rusage gem is available" do
         it_behaves_like "memory usage monitor" do
           before do
-            load "qless/middleware/memory_usage_monitor.rb"
+            load "reqless/middleware/memory_usage_monitor.rb"
 
             unless Process.respond_to?(:rusage)
               pending "Could not load the rusage gem"
@@ -136,7 +136,7 @@ module Qless
         context "when rusage returns memory in KB (commonly on Linux)" do
           before do
             expect(Process).to receive(:rusage).and_return(double(maxrss: memory_kb_according_to_ps)).exactly(2).times
-            load "qless/middleware/memory_usage_monitor.rb"
+            load "reqless/middleware/memory_usage_monitor.rb"
           end
 
           it 'returns the memory in KB' do
@@ -147,7 +147,7 @@ module Qless
         context "when rusage returns memory in bytes (commonly on OS X)" do
           before do
             expect(Process).to receive(:rusage).and_return(double(maxrss: memory_kb_according_to_ps * 1024)).exactly(2).times
-            load "qless/middleware/memory_usage_monitor.rb"
+            load "reqless/middleware/memory_usage_monitor.rb"
           end
 
           it 'returns the memory in KB' do
@@ -161,7 +161,7 @@ module Qless
           before do
             expect(MemoryUsageMonitor).to receive(:warn)
             expect(MemoryUsageMonitor).to receive(:require).and_raise(LoadError)
-            load "qless/middleware/memory_usage_monitor.rb"
+            load "reqless/middleware/memory_usage_monitor.rb"
           end
         end
       end

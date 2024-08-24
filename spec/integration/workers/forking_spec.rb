@@ -1,10 +1,10 @@
 # Encoding: utf-8
 
 require 'spec_helper'
-require 'qless/middleware/retry_exceptions'
+require 'reqless/middleware/retry_exceptions'
 require 'support/forking_worker_context'
 
-module Qless
+module Reqless
   describe Workers::ForkingWorker do
     include_context "forking worker"
 

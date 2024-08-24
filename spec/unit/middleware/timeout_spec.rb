@@ -1,8 +1,8 @@
 require 'spec_helper'
-require 'qless/job'
-require 'qless/middleware/timeout'
+require 'reqless/job'
+require 'reqless/middleware/timeout'
 
-module Qless
+module Reqless
   module Middleware
     ::RSpec.describe Timeout do
       class JobClass
@@ -17,11 +17,11 @@ module Qless
 
       let(:kernel_class) { class_double(Kernel).as_null_object }
 
-      let(:job) { instance_double(Qless::Job).as_null_object }
+      let(:job) { instance_double(Reqless::Job).as_null_object }
 
       def make_worker(timeout_class, timeout_seconds, kernel_class)
         Class.new(JobClass) do
-          include Qless::Middleware::Timeout.new(timeout_class: timeout_class,
+          include Reqless::Middleware::Timeout.new(timeout_class: timeout_class,
               kernel_class: kernel_class) { timeout_seconds }
         end.new
       end
@@ -63,7 +63,7 @@ module Qless
 
           expect {
             worker.around_perform job
-          }.to raise_error(Qless::InvalidTimeoutError)
+          }.to raise_error(Reqless::InvalidTimeoutError)
         end
 
         it 'aborts with a clear error when given a non-positive timeout' do
@@ -71,7 +71,7 @@ module Qless
 
           expect {
             worker.around_perform job
-          }.to raise_error(Qless::InvalidTimeoutError)
+          }.to raise_error(Reqless::InvalidTimeoutError)
         end
 
         it 'invokes job when positive timeout specified' do
