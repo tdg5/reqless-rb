@@ -33,6 +33,7 @@ services:
       - redis
       - selenium_chrome
     environment:
+      CAPYBARA_JAVASCRIPT_DRIVER: selenium_remote
       CAPYBARA_SERVER_HOST: test
       CAPYBARA_SERVER_PORT: 4000
       REDIS_HOST: redis

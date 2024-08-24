@@ -9,7 +9,7 @@ require 'capybara/rspec'
 require 'rack/test'
 require 'selenium-webdriver'
 
-Capybara.register_driver :remote_selenium_headless do |app|
+Capybara.register_driver :selenium_remote do |app|
   options = Selenium::WebDriver::Chrome::Options.new
   options.add_argument('--headless')
 
@@ -23,14 +23,15 @@ Capybara.register_driver :remote_selenium_headless do |app|
   )
 end
 
-Capybara.javascript_driver = :remote_selenium_headless
+CAPYBARA_JAVASCRIPT_DRIVER = ENV.fetch('CAPYBARA_JAVASCRIPT_DRIVER', 'selenium_chrome_headless').to_sym
+Capybara.javascript_driver = CAPYBARA_JAVASCRIPT_DRIVER
 Capybara.default_max_wait_time = 2
 
-capybara_server_host = ENV.fetch('CAPYBARA_SERVER_HOST', 'localhost')
-capybara_server_port = ENV.fetch('CAPYBARA_SERVER_PORT', 4000)
+capybara_server_host = ENV.fetch('CAPYBARA_SERVER_HOST', nil)
+capybara_server_port = ENV.fetch('CAPYBARA_SERVER_PORT', nil)
 Capybara.configure do |config|
-  config.server_host = capybara_server_host
-  config.server_port = capybara_server_port
+  config.server_host = capybara_server_host if capybara_server_host
+  config.server_port = capybara_server_port if capybara_server_port
 end
 
 def trigger_blur
@@ -62,6 +63,16 @@ module Reqless
 
     before(:all) do
       Capybara.app = Reqless::Server.new(Reqless::Client.new(redis_config))
+    end
+
+    # Ensure the javascript driver process doesn't live past these tests.
+    # Otherwise, they are additional child processes that interfere with the
+    # tests for the forking server, since it uses `wait2` to wait on any child
+    # process.
+    after(:all) do
+      Capybara.using_driver(CAPYBARA_JAVASCRIPT_DRIVER) do
+        Capybara.current_session.driver.quit
+      end
     end
 
     it 'can visit each top-nav tab' do
