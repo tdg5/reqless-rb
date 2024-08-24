@@ -1,0 +1,36 @@
+name: Style, test, and build package
+
+on:
+  push:
+    branches-ignore: [main]
+
+jobs:
+  style-test-and-build:
+    name: Style, test, and build package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          ruby-version: '3.3.0'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y redis-server
+          bundle install
+
+      - name: Check style
+        run: |
+          echo "TODO"
+
+      - name: Run tests and build package
+        run: |
+          bundle exec rake
+
+    timeout-minutes: 10

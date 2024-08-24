@@ -1,0 +1,45 @@
+name: Test, build, and update metadata
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test-and-build-and-update-metadata:
+    name: Test, build, and update metadata
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          token: ${{ secrets.PAT_GITHUB_ACTIONS }}
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          ruby-version: '3.3.0'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y redis-server
+          bundle install
+
+      - name: Check style
+        run: |
+          echo "TODO"
+
+      - name: Run tests and build package
+        run: |
+          echo "TODO"
+          bundle exec rake
+
+      - name: Checkout tdg5/github-action-pack
+        uses: actions/checkout@v4
+        with:
+          path: .github/actions/tdg5/github-action-pack
+          ref: v0.0.6
+          repository: tdg5/github-action-pack
+
+    timeout-minutes: 10
