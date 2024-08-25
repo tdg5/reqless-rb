@@ -3,11 +3,13 @@ $LOAD_PATH.push File.expand_path('../lib', __FILE__)
 require 'reqless/version'
 
 Gem::Specification.new do |s|
+  s.licenses    = ['MIT']
   s.name        = 'reqless'
   s.version     = Reqless::VERSION
   s.authors     = ['Dan Lecocq', 'Myron Marston', 'Danny Guinther']
   s.email       = ['dan@moz.com', 'myron@moz.com', 'dannyguinther@gmail.com']
   s.homepage    = 'http://github.com/tdg5/reqless-rb'
+  s.required_ruby_version = '>=3.0'
   s.summary     = %q{A Redis-Based Queueing System}
   s.description = %q{
 `reqless` is meant to be a performant alternative to other queueing
@@ -22,7 +24,7 @@ replication between clients. Keep the Lua scripts updated, and your
 language-specific extension will also remain up to date.
   }
 
-  s.files         = %w(README.md Gemfile Rakefile HISTORY.md)
+  s.files         = %w(README.md Gemfile Rakefile)
   s.files        += Dir.glob('lib/**/*.rb')
   s.files        += Dir.glob('lib/reqless/lua/*.lua')
   s.files        += Dir.glob('bin/**/*')
@@ -37,9 +39,10 @@ language-specific extension will also remain up to date.
 
   s.add_development_dependency 'capybara' , '~> 3.40.0'
   s.add_development_dependency 'faye-websocket', '~> 0.11.3'
+  s.add_development_dependency 'gem-release', '~> 2.2.2'
   s.add_development_dependency 'launchy' , '~> 3.0.0'
   s.add_development_dependency 'metriks' , '~> 0.9'
-  s.add_development_dependency 'pry'
+  s.add_development_dependency 'pry', '~> 0.14.2'
   s.add_development_dependency 'puma' , '~> 6.4.2'
   s.add_development_dependency 'rack' , '~> 3.0.10'
   s.add_development_dependency 'rackup' , '~> 2.1.0'

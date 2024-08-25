@@ -26,20 +26,9 @@ jobs:
           sudo apt-get update && sudo apt-get install -y redis-server
           bundle install
 
-      - name: Check style
-        run: |
-          echo "TODO"
-
       - name: Run tests and build package
         run: |
-          echo "TODO"
           bundle exec rake
-
-      - name: Checkout tdg5/github-action-pack
-        uses: actions/checkout@v4
-        with:
-          path: .github/actions/tdg5/github-action-pack
-          ref: v0.0.6
-          repository: tdg5/github-action-pack
+          gem build reqless.gemspec
 
     timeout-minutes: 10

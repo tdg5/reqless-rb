@@ -1,19 +1,21 @@
-name: Style, test, and build package
+name: Release
 
 on:
-  push:
-    branches-ignore: [main]
+  workflow_dispatch:
 
 jobs:
-  style-test-and-build:
-    name: Style, test, and build package
+  test-and-build-and-release:
+    name: Test, build, publish, and release the package
+    permissions:
+      id-token: write
+      contents: write
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v3
         with:
           submodules: true
+          token: ${{ secrets.PAT_GITHUB_ACTIONS }}
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -29,5 +31,8 @@ jobs:
         run: |
           bundle exec rake
           gem build reqless.gemspec
+
+      - name: Release gem
+        uses: rubygems/release-gem@v1
 
     timeout-minutes: 10
