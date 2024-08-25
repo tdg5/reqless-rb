@@ -32,6 +32,12 @@ jobs:
           bundle exec rake
           gem build reqless.gemspec
 
+      - name: Debug
+        run: |
+          git status
+          cat .bundle/config
+          git diff
+
       - name: Release gem
         uses: rubygems/release-gem@v1
 
