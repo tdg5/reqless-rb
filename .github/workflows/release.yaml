@@ -2,9 +2,20 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        default: '1.2.3'
+      previousVersion:
+        description: 'Previous release version (used for release notes)'
+        required: true
+        default: '1.2.2'
 
 jobs:
   test-and-build-and-release:
+    env:
+      REQLESS_VERSION: ${{ github.event.inputs.version }}
     name: Test, build, publish, and release the package
     permissions:
       id-token: write
@@ -27,12 +38,46 @@ jobs:
           sudo apt-get update && sudo apt-get install -y redis-server
           bundle install
 
+      - name: Apply version
+        run: |
+          sed -i "s/0\.0\.0/$REQLESS_VERSION/" lib/reqless/version.rb
+
       - name: Run tests and build package
         run: |
           bundle exec rake
           gem build reqless.gemspec
 
+      - name: Checkout tdg5/github-action-pack
+        uses: actions/checkout@v4
+        with:
+          path: .github/actions/tdg5/github-action-pack
+          ref: v0.0.7
+          repository: tdg5/github-action-pack
+
+      - name: Commit version file
+        uses: ./.github/actions/tdg5/github-action-pack/packages/stage-files-and-commit-action
+        with:
+          authorEmail: dannyguinther+spamburglar@gmail.com
+          authorName: Spamburglar
+          commitMessage: "v${{ github.event.inputs.version }}"
+          requiredFilePaths: |
+            lib/reqless/version.rb
+
       - name: Release gem
         uses: rubygems/release-gem@v1
+
+      - name: Create release for published version
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB_ACTIONS }}
+          PREVIOUS_RELEASE_NAME: v${{ github.event.inputs.previousVersion }}
+          RELEASE_NAME: v${{ github.event.inputs.version }}
+        run: |
+          gh release create \
+            --generate-notes \
+            --notes-start-tag "$PREVIOUS_RELEASE_NAME" \
+            --target "$GITHUB_REF" \
+            --title "$RELEASE_NAME" \
+            --verify-tag \
+            "$RELEASE_NAME"
 
     timeout-minutes: 10
