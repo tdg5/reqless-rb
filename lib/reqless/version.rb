@@ -1,5 +1,5 @@
 # Encoding: utf-8
 
 module Reqless
-  VERSION = '0.0.0'
+  VERSION = '0.0.2'
 end
