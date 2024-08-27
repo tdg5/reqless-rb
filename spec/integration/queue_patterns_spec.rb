@@ -3,6 +3,7 @@ require 'reqless'
 require 'spec_helper'
 
 module Reqless
+  DEFAULT_QUEUE_PRIORITY_PATTERN = QueuePriorityPattern.new(%w[default], false)
   describe ClientQueuePatterns, :integration do
     describe ClientQueuePatterns do
       describe '#get_queue_identifier_patterns' do
@@ -62,7 +63,7 @@ module Reqless
       describe '#get_queue_priority_patterns' do
         it 'returns the expected default when no patterns are defined' do
           priority_patterns = client.queue_patterns.get_queue_priority_patterns
-          expect(priority_patterns).to eq([])
+          expect(priority_patterns).to eq([DEFAULT_QUEUE_PRIORITY_PATTERN])
         end
 
         it 'returns the expected patterns when patterns are defined' do
@@ -73,7 +74,7 @@ module Reqless
           ]
           client.queue_patterns.set_queue_priority_patterns(expected_patterns)
           priority_patterns = client.queue_patterns.get_queue_priority_patterns
-          expect(priority_patterns).to eq(expected_patterns)
+          expect(priority_patterns).to eq([*expected_patterns, DEFAULT_QUEUE_PRIORITY_PATTERN])
         end
       end
 
@@ -84,7 +85,7 @@ module Reqless
           ]
           client.queue_patterns.set_queue_priority_patterns(initial_patterns)
           priority_patterns = client.queue_patterns.get_queue_priority_patterns
-          expect(priority_patterns).to eq(initial_patterns)
+          expect(priority_patterns).to eq([*initial_patterns, DEFAULT_QUEUE_PRIORITY_PATTERN])
 
           expected_patterns = [
             QueuePriorityPattern.new(pattern=['foo'], true),
@@ -93,17 +94,17 @@ module Reqless
           ]
           client.queue_patterns.set_queue_priority_patterns(expected_patterns)
           priority_patterns = client.queue_patterns.get_queue_priority_patterns
-          expect(priority_patterns).to eq(expected_patterns)
+          expect(priority_patterns).to eq([*expected_patterns, DEFAULT_QUEUE_PRIORITY_PATTERN])
         end
 
         it 'clears out all existing patterns if no patterns are given' do
           initial_patterns = [QueuePriorityPattern.new(pattern=['foo'], true)]
           client.queue_patterns.set_queue_priority_patterns(initial_patterns)
           priority_patterns = client.queue_patterns.get_queue_priority_patterns
-          expect(priority_patterns).to eq(initial_patterns)
+          expect(priority_patterns).to eq([*initial_patterns, DEFAULT_QUEUE_PRIORITY_PATTERN])
           client.queue_patterns.set_queue_priority_patterns([])
           priority_patterns = client.queue_patterns.get_queue_priority_patterns
-          expect(priority_patterns).to eq([])
+          expect(priority_patterns).to eq([DEFAULT_QUEUE_PRIORITY_PATTERN])
         end
       end
     end
