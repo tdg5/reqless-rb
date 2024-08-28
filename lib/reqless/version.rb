@@ -2,5 +2,5 @@
 
 module Reqless
   # VERSION is overwritten dynamically as part of the release process.
-  VERSION = '0.0.3'
+  VERSION = '0.0.4'
 end
