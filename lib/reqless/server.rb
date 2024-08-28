@@ -78,6 +78,8 @@ module Reqless
       def tabs
         [
           { name: 'Queues'   , path: '/queues'   },
+          {:name => 'DynamicQueues', :path => '/dynamicqueues'},
+          {:name => 'QueuePriority', :path => '/queuepriority'},
           { name: 'Throttles', path: '/throttles'},
           { name: 'Workers'  , path: '/workers'  },
           { name: 'Track'    , path: '/track'    },
@@ -155,6 +157,60 @@ module Reqless
         else
           formatted
         end
+      end
+
+      # Returns a list of queues to use when searching for a job.
+      #
+      # A splat ("*") means you want every queue (in alpha order) - this
+      # can be useful for dynamically adding new queues.
+      #
+      # The splat can also be used as a wildcard within a queue name,
+      # e.g. "*high*", and negation can be indicated with a prefix of "!"
+      #
+      # An @key can be used to dynamically look up the queue list for key from redis.
+      # If no key is supplied, it defaults to the worker's hostname, and wildcards
+      # and negations can be used inside this dynamic queue list.   Set the queue
+      # list for a key with set_dynamic_queue(key, ["q1", "q2"]
+      #
+      def expand_queues(queue_patterns, real_queues)
+        queue_patterns = queue_patterns.dup
+        real_queues = real_queues.dup
+        dynamic_queues = client.queue_patterns.get_queue_identifier_patterns
+
+        matched_queues = []
+
+        while q = queue_patterns.shift
+          q = q.to_s
+          negated = false
+
+          if q =~ /^(!)?@(.*)/
+            key = $2.strip
+            key = Socket.gethostname if key.size == 0
+
+            add_queues = dynamic_queues[key]
+            add_queues.map! { |q| q.gsub!(/^!/, '') || q.gsub!(/^/, '!') } if $1
+
+            queue_patterns.concat(add_queues)
+            next
+          end
+
+          if q =~ /^!/
+            negated = true
+            q = q[1..-1]
+          end
+
+          patstr = q.gsub(/\*/, ".*")
+          pattern = /^#{patstr}$/
+          if negated
+            matched_queues -= matched_queues.grep(pattern)
+          else
+            matches = real_queues.grep(/^#{pattern}$/)
+            matches = [q] if matches.size == 0 && q == patstr
+            matched_queues.concat(matches)
+          end
+        end
+
+        return matched_queues.uniq.sort
       end
     end
 
@@ -541,6 +597,75 @@ module Reqless
           { id: job.jid }
         end)
       end
+    end
+
+    get "/dynamicqueues" do
+      @queues = []
+      real_queues = client.queues.counts.collect {|q| q['name'] }
+
+      dqueues = client.queue_patterns.get_queue_identifier_patterns
+      dqueues.each do |k, v|
+        expanded = expand_queues(["@#{k}"], real_queues)
+        expanded = expanded.collect { |q| q.split(":").last }
+        view_data = {
+            'name' => k,
+            'value' => Array(v).join(", "),
+            'expanded' => expanded.join(", ")
+        }
+        @queues << view_data
+      end
+
+      @queues.sort! do |a, b|
+        an = a['name']
+        bn = b['name']
+        if an == 'default'
+          1
+        elsif bn == 'default'
+          -1
+        else
+          an <=> bn
+        end
+      end
+
+      erb :dynamic_queues, {:layout => true, :locals => { :title => 'Dynamic Queues' }}
+    end
+
+    post "/dynamicqueues" do
+      queues = params['queues']
+      dynamic_queues = {}
+      queues.each do |queue|
+        values = queue['value'].to_s.split(',').collect { |q| q.gsub(/\s/, '') }
+        dynamic_queues[queue['name']] = values
+      end
+
+      client.queue_patterns.set_queue_identifier_patterns(dynamic_queues)
+      redirect to("/dynamicqueues")
+    end
+
+    get "/queuepriority" do
+      # For the UI we always want the latest persisted data
+      @priorities = client.queue_patterns.get_queue_priority_patterns.map do |priority_pattern|
+        {
+          'fairly' => priority_pattern.should_distribute_fairly,
+          'pattern' => priority_pattern.pattern.join(', '),
+        }
+      end
+      erb :priorities, {:layout => true, :locals => { :title => 'Queue Priorities' }}
+    end
+
+    post "/queuepriority" do
+      priorities = params['priorities']
+      priority_patterns = priorities.map do |priority_pattern|
+        fairly = priority_pattern.fetch('fairly', 'false')
+        should_distribute_fairly = fairly == true || fairly == 'true'
+        Reqless::QueuePriorityPattern.new(
+          priority_pattern['pattern'].to_s.split(',').collect { |q| q.gsub(/\s/, '') },
+          should_distribute_fairly,
+        )
+      end
+      client.queue_patterns.set_queue_priority_patterns(priority_patterns)
+
+      redirect to("/queuepriority")
     end
 
     # start the server if ruby file executed directly

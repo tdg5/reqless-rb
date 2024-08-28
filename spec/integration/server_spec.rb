@@ -1218,5 +1218,245 @@ module Reqless
       get '/failed.json'
       expect(JSON.parse(last_response.body)).to eq({ 'foo' => 1 })
     end
+
+    context "DynamicQueue" do
+
+      context "existence in application" do
+
+        it "should respond to it's url" do
+          get "/dynamicqueues"
+          expect(last_response).to be_ok
+        end
+
+        it "should display its tab" do
+          get "/queues"
+          expect(last_response.body).to include("<a href='/dynamicqueues'>DynamicQueues</a>")
+        end
+
+      end
+
+      context "show dynamic queues table" do
+
+        it "should shows default queue when nothing set" do
+          get "/dynamicqueues"
+
+          expect(last_response.body).to include('default')
+        end
+
+        it "should shows names of queues" do
+          client.queue_patterns.set_queue_identifier_patterns({
+            "key_one" => %w[foo],
+            "key_two" => %w[bar],
+          })
+
+          get "/dynamicqueues"
+
+          expect(last_response.body).to include('key_one')
+          expect(last_response.body).to include('key_two')
+        end
+
+        it "should shows values of queues" do
+          client.queue_patterns.set_queue_identifier_patterns({
+            "key_one" => %w[foo],
+            "key_two" => %w[bar baz],
+          })
+
+          get "/dynamicqueues"
+
+          expect(last_response.body).to include('foo')
+          expect(last_response.body).to include('bar, baz')
+        end
+
+      end
+
+      context "remove queue link" do
+
+        it "should show remove link for queue" do
+          client.queue_patterns.set_queue_identifier_patterns({
+            "key_one" => %w[foo],
+          })
+
+          get "/dynamicqueues"
+
+          expect(last_response.body).to match(/<a .*href=['"]#remove['"].*>/)
+        end
+
+        it "should show add link" do
+          get "/dynamicqueues"
+
+          expect(last_response.body).to match(/<a .*href=['"]#add['"].*>/)
+        end
+
+      end
+
+      context "form to edit queues" do
+
+        it "should have form to edit queues" do
+          get "/dynamicqueues"
+
+          expect(last_response.body).to match(/<form action="\/dynamicqueues"/)
+        end
+
+        it "should show input fields" do
+          client.queue_patterns.set_queue_identifier_patterns({
+            "key_one" => %w[foo],
+            "key_two" => %w[bar baz],
+          })
+
+          get "/dynamicqueues"
+
+          expect(last_response.body).to match(/<input type="text" id="input-0-name" name="queues\[\]\[name\]" value="key_one"/)
+          expect(last_response.body).to match(/<input type="text" id="input-0-value" name="queues\[\]\[value\]" value="foo"/)
+          expect(last_response.body).to match(/<input type="text" id="input-1-name" name="queues\[\]\[name\]" value="key_two"/)
+          expect(last_response.body).to match(/<input type="text" id="input-1-value" name="queues\[\]\[value\]" value="bar, baz"/)
+        end
+
+        it "should delete queues on empty queue submit" do
+          client.queue_patterns.set_queue_identifier_patterns({
+            "key_two" => %w[bar baz],
+          })
+
+          post "/dynamicqueues", {'queues' => [{'name' => "key_two", "value" => ""}]}
+
+          expect(last_response).to be_redirect
+          expect(last_response['Location']).to match(/dynamicqueues/)
+          queue_identifier_patterns = client.queue_patterns.get_queue_identifier_patterns
+          expect(queue_identifier_patterns.fetch("key_two", false)).to eq(false)
+        end
+
+        it "should create queues" do
+          post "/dynamicqueues", {'queues' => [{'name' => "key_two", "value" => " foo, bar ,baz "}]}
+
+          expect(last_response).to be_redirect
+          expect(last_response['Location']).to match(/dynamicqueues/)
+          dynamic_queues = client.queue_patterns.get_queue_identifier_patterns
+          expect(dynamic_queues["key_two"]).to eq(%w{foo bar baz})
+        end
+
+        it "should update queues" do
+          client.queue_patterns.set_queue_identifier_patterns({"key_two" => ["bar", "baz"]})
+
+          post "/dynamicqueues", {'queues' => [{'name' => "key_two", "value" => "foo,bar,baz"}]}
+
+          expect(last_response).to be_redirect
+          expect(last_response['Location']).to match(/dynamicqueues/)
+          dynamic_queues = client.queue_patterns.get_queue_identifier_patterns
+          expect(dynamic_queues["key_two"]).to eq(%w{foo bar baz})
+        end
+
+      end
+
+    end
+
+    context "QueuePriority" do
+
+      context "existence in application" do
+
+        it "should respond to it's url" do
+          get "/queuepriority"
+          expect(last_response).to be_ok
+        end
+
+        it "should display its tab" do
+          get "/queues"
+          expect(last_response.body).to include("<a href='/queuepriority'>QueuePriority</a>")
+        end
+
+      end
+
+      context "show queue priority table" do
+
+        before(:each) do
+          queue_priority_patterns = [
+            Reqless::QueuePriorityPattern.new(%w[foo], false),
+            Reqless::QueuePriorityPattern.new(%w[default], false),
+            Reqless::QueuePriorityPattern.new(%w[bar], true),
+          ]
+          client.queue_patterns.set_queue_priority_patterns(queue_priority_patterns)
+        end
+
+        it "should shows pattern input fields" do
+          get "/queuepriority"
+
+          expect(last_response.body).to match(/<input type="text" id="input-0-pattern" name="priorities\[\]\[pattern\]" value="foo"/)
+          expect(last_response.body).to match(/<input type="text" id="input-1-pattern" name="priorities\[\]\[pattern\]" value="default"/)
+          expect(last_response.body).to match(/<input type="text" id="input-2-pattern" name="priorities\[\]\[pattern\]" value="bar"/)
+        end
+
+        it "should show fairly checkboxes" do
+          get "/queuepriority"
+
+          expect(last_response.body).to match(/<input type="checkbox" id="input-0-fairly" name="priorities\[\]\[fairly\]" value="true" *\/>/)
+          expect(last_response.body).to match(/<input type="checkbox" id="input-1-fairly" name="priorities\[\]\[fairly\]" value="true" *\/>/)
+          expect(last_response.body).to match(/<input type="checkbox" id="input-2-fairly" name="priorities\[\]\[fairly\]" value="true" checked *\/>/)
+        end
+
+      end
+
+      context "edit links" do
+
+        before(:each) do
+          queue_priority_patterns = [
+            Reqless::QueuePriorityPattern.new(%w[foo], false),
+            Reqless::QueuePriorityPattern.new(%w[default], false),
+            Reqless::QueuePriorityPattern.new(%w[bar], true),
+          ]
+          client.queue_patterns.set_queue_priority_patterns(queue_priority_patterns)
+        end
+
+        it "should show remove link for queue" do
+          get "/queuepriority"
+
+          expect(last_response.body).to match(/<a href="#remove"/)
+        end
+
+        it "should show up link for queue" do
+          get "/queuepriority"
+
+          expect(last_response.body).to match(/<a href="#up"/)
+        end
+
+        it "should show down link for queue" do
+          get "/queuepriority"
+
+          expect(last_response.body).to match(/<a href="#down"/)
+        end
+
+      end
+
+      context "form to edit queues" do
+
+        it "should have form to edit queues" do
+          get "/queuepriority"
+
+          expect(last_response.body).to match(/<form action="\/queuepriority"/)
+        end
+
+        it "should update queues" do
+          expect(client.queue_patterns.get_queue_priority_patterns).to eq([
+            Reqless::QueuePriorityPattern.new(['default'], false),
+          ])
+
+          params = {'priorities' => [
+            {'pattern' => 'foo'},
+            {'pattern' => 'default'},
+            {'pattern' => 'bar', 'fairly' => 'true'},
+          ]}
+          post '/queuepriority', params
+
+          expect(last_response).to be_redirect
+          expect(last_response['Location']).to match(/queuepriority/)
+          expected_patterns = [
+            Reqless::QueuePriorityPattern.new(%w[foo], false),
+            Reqless::QueuePriorityPattern.new(%w[default], false),
+            Reqless::QueuePriorityPattern.new(%w[bar], true),
+          ]
+          actual_patterns = client.queue_patterns.get_queue_priority_patterns
+          expect(actual_patterns).to eq(expected_patterns)
+        end
+
+      end
+
+    end
   end
 end
