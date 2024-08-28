@@ -40,7 +40,7 @@ jobs:
 
       - name: Apply version
         run: |
-          sed -i "s/0\.0\.0/$REQLESS_VERSION/" lib/reqless/version.rb
+          sed -Ei "s/VERSION = '[^']+'/VERSION = '$REQLESS_VERSION'/" lib/reqless/version.rb
 
       - name: Run tests and build package
         run: |
