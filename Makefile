@@ -10,3 +10,7 @@ reqless-core:
 	make -C lib/reqless/reqless-core/
 	cp lib/reqless/reqless-core/reqless.lua lib/reqless/lua/
 	cp lib/reqless/reqless-core/reqless-lib.lua lib/reqless/lua/
+
+.PHONY: test
+test:
+	bundle exec rspec
