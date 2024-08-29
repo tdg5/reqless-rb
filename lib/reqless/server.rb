@@ -2,6 +2,7 @@
 
 require 'sinatra/base'
 require 'reqless'
+require 'reqless/queue_patterns_helper'
 
 module Reqless
   # The Reqless web interface
@@ -157,60 +158,6 @@ module Reqless
         else
           formatted
         end
-      end
-
-      # Returns a list of queues to use when searching for a job.
-      #
-      # A splat ("*") means you want every queue (in alpha order) - this
-      # can be useful for dynamically adding new queues.
-      #
-      # The splat can also be used as a wildcard within a queue name,
-      # e.g. "*high*", and negation can be indicated with a prefix of "!"
-      #
-      # An @key can be used to dynamically look up the queue list for key from redis.
-      # If no key is supplied, it defaults to the worker's hostname, and wildcards
-      # and negations can be used inside this dynamic queue list.   Set the queue
-      # list for a key with set_dynamic_queue(key, ["q1", "q2"]
-      #
-      def expand_queues(queue_patterns, real_queues)
-        queue_patterns = queue_patterns.dup
-        real_queues = real_queues.dup
-        dynamic_queues = client.queue_patterns.get_queue_identifier_patterns
-
-        matched_queues = []
-
-        while q = queue_patterns.shift
-          q = q.to_s
-          negated = false
-
-          if q =~ /^(!)?@(.*)/
-            key = $2.strip
-            key = Socket.gethostname if key.size == 0
-
-            add_queues = dynamic_queues[key]
-            add_queues.map! { |q| q.gsub!(/^!/, '') || q.gsub!(/^/, '!') } if $1
-
-            queue_patterns.concat(add_queues)
-            next
-          end
-
-          if q =~ /^!/
-            negated = true
-            q = q[1..-1]
-          end
-
-          patstr = q.gsub(/\*/, ".*")
-          pattern = /^#{patstr}$/
-          if negated
-            matched_queues -= matched_queues.grep(pattern)
-          else
-            matches = real_queues.grep(/^#{pattern}$/)
-            matches = [q] if matches.size == 0 && q == patstr
-            matched_queues.concat(matches)
-          end
-        end
-
-        return matched_queues.uniq.sort
       end
     end
 
@@ -603,9 +550,11 @@ module Reqless
       @queues = []
       real_queues = client.queues.counts.collect {|q| q['name'] }
 
-      dqueues = client.queue_patterns.get_queue_identifier_patterns
-      dqueues.each do |k, v|
-        expanded = expand_queues(["@#{k}"], real_queues)
+      queue_identifier_patterns = client.queue_patterns.get_queue_identifier_patterns
+      queue_identifier_patterns.each do |k, v|
+        expanded = QueuePatternsHelper.expand_queues(
+          ["@#{k}"], real_queues, queue_identifier_patterns
+        )
         expanded = expanded.collect { |q| q.split(":").last }
         view_data = {
             'name' => k,

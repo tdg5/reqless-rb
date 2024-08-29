@@ -111,3 +111,8 @@ shared_context 'stops all non-main threads', :uses_threads do
     threads.each(&:join)
   end
 end
+
+class NoopJob
+  def self.perform(*args)
+  end
+end
